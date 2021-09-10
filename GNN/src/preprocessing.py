@@ -3,10 +3,11 @@
 import pandas as pd
 import torch
 import dgl
+import os
 
 def load_data(dataset):
-    #PATH = '/Users/simondelarue/Documents/MS_BGD-Telecom_PARIS/Stage/1_data'
-    PATH = '../data'
+    print(os.getcwd())
+    PATH = f'{os.getcwd()}/data'
 
     if dataset == 'SF2H':
         df_data = pd.read_csv(f'{PATH}/tij_SFHH.dat_', header=None, names=['t', 'i', 'j'], delimiter=' ')
@@ -22,7 +23,6 @@ def proprocess(df, dataset):
     if dataset == 'SF2H':
 
         # Reindex node labels
-
         df_preproc = df.copy()
         unique_nodes = set(df_preproc['i'].values) | set(df_preproc['j'].values)
 
@@ -36,8 +36,7 @@ def proprocess(df, dataset):
         return df_preproc
 
 def temporal_graph(dataset):
-    #PREPROC_PATH = '/Users/simondelarue/Documents/MS_BGD-Telecom_PARIS/Stage/1_data/preprocessed_data'
-    PREPROC_PATH = '../preprocessed_data'
+    PREPROC_PATH = f'{os.getcwd()}/preprocessed_data'
 
     # Load and save data
     data_df = load_data(dataset)
@@ -48,8 +47,6 @@ def temporal_graph(dataset):
     print('Creating temporal graph ...')
     g = dgl.graph((preproc_data_df['src'], preproc_data_df['dest']))
     g.edata['timestamp'] = torch.from_numpy(preproc_data_df['t'].to_numpy())
-
-    # Consider normalized adjacency as node feature
 
     print('Done !')
     return g

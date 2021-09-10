@@ -1,8 +1,33 @@
 # -*- coding: utf-8 -*-
 import numpy as np
 import torch
+from scipy import sparse
 import scipy.sparse as sp
 import dgl
+from dgl.data.utils import save_graphs
+import torch.nn.functional as F
+from sklearn.metrics import roc_auc_score, roc_curve
+
+def compute_loss(pos_score, neg_score):
+    scores = torch.cat([pos_score, neg_score])
+    labels = torch.cat([torch.ones(pos_score.shape[0]), torch.zeros(neg_score.shape[0])])
+    return F.binary_cross_entropy_with_logits(scores, labels)
+
+def compute_auc(pos_score, neg_score):
+    
+    # Compute auc
+    scores = torch.cat([pos_score, neg_score]).numpy()
+    labels = torch.cat(
+        [torch.ones(pos_score.shape[0]), torch.zeros(neg_score.shape[0])]).numpy()
+    
+    # Compute fpr and tpr
+    fpr, tpr, _ = roc_curve(labels, scores)
+    
+    return roc_auc_score(labels, scores), fpr, tpr
+
+def write_log(filename, text):
+    with open(filename, 'a') as f:
+        f.write(text)
 
 def sample_random_node(g, n):
     return int(np.random.choice(g.nodes().numpy(), n))
@@ -10,8 +35,52 @@ def sample_random_node(g, n):
 def sample_random_time(timerange, n, mask):
     return int(np.random.choice(timerange[mask], n))
 
+def sample_non_neighbors(g, node, all_nodes):
+    ''' Return a list of non neighbors of a specific node in a graph. '''
+    
+    # Neighbors nodes
+    src_nodes = dgl.in_subgraph(g, int(node)).edges()[0]
+    # Non neighbors nodes
+    non_neighb_nodes = np.array(list(all_nodes - set(src_nodes.numpy())))
+    
+    return torch.from_numpy(non_neighb_nodes)
+
 def make_edge_list(src, dest, t, mask):
     return [(u, v, t) for u, v, t in zip(src[mask].numpy(), dest[mask].numpy(), t[mask].numpy())]
+
+def normalize_adj(A):
+    
+    A_arr = A.numpy()
+
+    # Compute degrees of adjacency matrix
+    deg = A_arr.dot(np.ones(A_arr.shape[1]))
+    
+    D = np.diag(deg)
+    sparse_D = sparse.coo_matrix(D)
+    data = sparse_D.data
+    sparse_D.data = 1 / np.sqrt(data)
+    D_norm = sparse_D.todense()
+    
+    # Normalize adjacency matrix
+    A_norm = D_norm.dot(A_arr).T.dot(D_norm).T
+    
+    return A_norm
+
+def compute_batch_feature(g, timerange, add_self_edge=True):
+    
+    # Add edges between node and itself
+    if add_self_edge:
+        g.add_edges(g.nodes(), g.nodes())
+    
+    src, dest = g.edges()
+    adj = np.zeros((g.number_of_nodes(), g.number_of_nodes()))
+    for src_val, dest_val in zip(src, dest):
+        adj[src_val, dest_val] += 1
+    
+    norm_mat = np.eye(adj.shape[0]) * (1 / len(timerange))
+    norm_adj = adj.dot(norm_mat)
+    
+    return norm_adj
 
 def train_test_split(g, val_size=0.15, test_size=0.15):
 
@@ -96,6 +165,11 @@ def train_test_split(g, val_size=0.15, test_size=0.15):
 
     # Build training graph (ie. graph without test and valid edges)
     train_g = dgl.remove_edges(g, eids[train_nb_edge:])
+
+    # Save graphs
+    graphs_to_save = [train_g, train_pos_g, train_neg_g, val_pos_g, val_neg_g, test_pos_g, test_neg_g]
+    for graph in graphs_to_save:
+        save_graphs(f'../preprocessed_data/data.bin', graphs_to_save)
 
     print('Done !')
 
