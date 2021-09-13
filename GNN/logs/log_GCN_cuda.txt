@@ -1,0 +1,5 @@
+EXECUTION LOG 
+
+
+Elapsed time : 0.01715707778930664
+Elapsed time : 21.42013907432556

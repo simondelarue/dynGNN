@@ -3,6 +3,7 @@
 import argparse
 import numpy as np
 import os
+import time
 from dgl.data.utils import load_graphs
 import torch
 
@@ -12,6 +13,11 @@ from utils import train_test_split, compute_batch_feature, normalize_adj, comput
 from temporal_sampler import temporal_sampler
 from predictor import DotPredictor
 from gcn import GCNNeighb, GCNNonNeighb
+
+LOG_PATH = f'{os.getcwd()}/logs'
+logfile = 'log_GCN_cuda.txt'
+with open(f'{LOG_PATH}/{logfile}', 'w') as f:
+    f.write('EXECUTION LOG \n\n')
 
 parser = argparse.ArgumentParser('Preprocessing data')
 parser.add_argument('--data', type=str, help='Dataset name : \{SF2H\}', default='SF2H')
@@ -30,13 +36,14 @@ TIMESTEP = 20 # SF2H dataset timestep
 EMB_SIZE = args.emb_size
 EPOCHS = args.epochs
 LR = args.lr
-LOG_PATH = f'{os.getcwd()}/logs'
+DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 
 # ------ Dynamic graph ------
 g = temporal_graph(args.data)
 
 # ------ Train test split ------
+start = time.time()
 if args.cache != None:
     print('\nUse cached splitted graphs')
     glist = list(load_graphs(f"{os.getcwd()}/{args.cache}/data.bin")[0])
@@ -46,12 +53,20 @@ else:
         val_pos_g, val_neg_g, \
         test_pos_g, test_neg_g = train_test_split(g, VAL_SIZE, TEST_SIZE)
 
+end = time.time()
+print(f'Elapsed time : {end-start}s')
+write_log(f'{LOG_PATH}/{logfile}', f"\nElapsed time : {end-start}")
 
 # ------ Sample training batches ------
+start = time.time()
 print(f'\nSampling training batches of size {BATCH_SIZE} ...')
 # Build graph batches
-train_batches, indexes_pos = temporal_sampler(train_g, BATCH_SIZE, TIMESTEP)
-train_neg_batches, _ = temporal_sampler(train_neg_g, BATCH_SIZE, TIMESTEP)
+train_batches, indexes_pos = temporal_sampler(train_g, BATCH_SIZE, TIMESTEP, DEVICE)
+train_neg_batches, _ = temporal_sampler(train_neg_g, BATCH_SIZE, TIMESTEP, DEVICE)
+end = time.time()
+print(f'Elapsed time : {end-start}s')
+write_log(f'{LOG_PATH}/{logfile}', f"\nElapsed time : {end-start}")
+
 
 # Filter graphs only for the period where a positive graph is computed
 train_batches = np.array(train_batches)[indexes_pos]
@@ -64,38 +79,39 @@ print('Done!')
 
 # ------ Compute batch features ------
 print('\nComputing batch features ...')
+start = time.time()
 for train_batch_g in train_batches:
     train_batch_timerange = np.arange(int(train_batch_g.edata['timestamp'].min()), int(train_batch_g.edata['timestamp'].max()) + 20, 20)
     # Compute features 
     if train_batch_timerange[0] != 0:
         train_batch_feat = compute_batch_feature(train_batch_g, train_batch_timerange, add_self_edge=False) 
-        train_batch_g.ndata['feat'] = torch.from_numpy(normalize_adj(torch.from_numpy(train_batch_feat)))
+        train_batch_g.ndata['feat'] = torch.from_numpy(normalize_adj(torch.from_numpy(train_batch_feat))) #.to(DEVICE)
         
 for train_neg_batch_g in train_neg_batches:
     train_neg_batch_timerange = np.arange(int(train_neg_batch_g.edata['timestamp'].min()), int(train_neg_batch_g.edata['timestamp'].max()) + 20, 20)
     # Compute features 
     if train_neg_batch_timerange[0] != 0:
         train_neg_batch_feat = compute_batch_feature(train_neg_batch_g, train_neg_batch_timerange, add_self_edge=False) 
-        train_neg_batch_g.ndata['feat'] = torch.from_numpy(normalize_adj(torch.from_numpy(train_neg_batch_feat)))
+        train_neg_batch_g.ndata['feat'] = torch.from_numpy(normalize_adj(torch.from_numpy(train_neg_batch_feat))) #.to(DEVICE)
 
+end = time.time()
+print(f'Elapsed time : {end-start}s')
+write_log(f'{LOG_PATH}/{logfile}', f"\nElapsed time : {end-start}")
 print('Done!')
 
 # ====== Graph Neural Networks ======
 
 # 1. Neighbor's embedding GCN ------
 
-logfile = 'log_GCN_Neighbors.txt'
-with open(f'{LOG_PATH}/{logfile}', 'w') as f:
-    f.write('EXECUTION LOG \n\n')
-
 history_emb_N = [] 
 
 # Model
-neighb_model = GCNNeighb(train_batches[0].ndata['feat'].shape[1], EMB_SIZE)
+neighb_model = GCNNeighb(train_batches[0].ndata['feat'].shape[1], EMB_SIZE).to(DEVICE)
 optimizer_neighb = torch.optim.Adam(neighb_model.parameters(), lr=LR)
 pred = DotPredictor()
 
 # Training
+start = time.time()
 print('\n Neighbors GCN training ...')
 neighb_model.train(optimizer=optimizer_neighb,
                     pos_batches=train_batches,
@@ -103,42 +119,54 @@ neighb_model.train(optimizer=optimizer_neighb,
                     emb_size=EMB_SIZE,
                     predictor=pred,
                     loss=compute_loss,
+                    device=DEVICE,
                     epochs=EPOCHS)
 
 # Test
-print('\n Neighbors GCN test ...')
+print('Neighbors GCN test ...')
 history_score, test_pos_score, test_neg_score = neighb_model.test(pred, test_pos_g, test_neg_g, metric='auc', return_all=True)
 print(f'Done!')
-print(f" ====> Test AUC : {history_score['test_auc']}")
+print(f" ====> Test AUC : {history_score['test_auc']:.4f}")
 write_log(f'{LOG_PATH}/{logfile}', f"Test AUC : {history_score['test_auc']}")
+
+end = time.time()
+print(f'Elapsed time : {end-start}s')
+write_log(f'{LOG_PATH}/{logfile}', f"\nElapsed time : {end-start}")
 
 # 2. Non-Neighbor's embedding GCN ------
 
-logfile = 'log_GCN_NNeighbors.txt'
-with open(f'{LOG_PATH}/{logfile}', 'w') as f:
-    f.write('EXECUTION LOG \n\n')
+#logfile = 'log_GCN_NNeighbors.txt'
+#with open(f'{LOG_PATH}/{logfile}', 'w') as f:
+#    f.write('EXECUTION LOG \n\n')
 
 history_emb_NN = [] 
 
 # Model
-non_neighb_model = GCNNonNeighb(train_batches[0].ndata['feat'].shape[1], EMB_SIZE)
+non_neighb_model = GCNNonNeighb(train_batches[0].ndata['feat'].shape[1], EMB_SIZE).to(DEVICE)
 optimizer_non_neighb = torch.optim.Adam(non_neighb_model.parameters(), lr=LR)
 pred = DotPredictor()
 
 # Training
-'''print('\n Non-Neighbors GCN training ...')
+print('\n Non-Neighbors GCN training ...')
+start = time.time()
 non_neighb_model.train(optimizer=optimizer_non_neighb,
                     pos_batches=train_batches,
                     neg_batches=train_neg_batches,
                     emb_size=EMB_SIZE,
                     predictor=pred,
                     loss=compute_loss,
+                    device=DEVICE,
                     epochs=EPOCHS)
 
 # Test
+print('Non-Neighbors GCN test ...')
 history_score, test_pos_score, test_neg_score = non_neighb_model.test(pred, test_pos_g, test_neg_g, metric='auc', return_all=True)
 print(f'Done!')
-print(f" ====> Test AUC : {history_score['test_auc']}")
-write_log(f'{LOG_PATH}/{logfile}', f"Test AUC : {history_score['test_auc']}")'''
+print(f" ====> Test AUC : {history_score['test_auc']:.4f}")
+write_log(f'{LOG_PATH}/{logfile}', f"Test AUC : {history_score['test_auc']}")
+
+end = time.time()
+print(f'Elapsed time : {end-start}s')
+write_log(f'{LOG_PATH}/{logfile}', f"\nElapsed time : {end-start}")
 
 # 3. Full GCN : Neighbor's GCN + Non-Neighbor's GCN + Previous timestep embedding GCN ------

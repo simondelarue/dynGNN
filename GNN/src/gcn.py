@@ -42,7 +42,7 @@ class GCNNeighb(GCNModel):
         self.layer1 = GCNLayer(in_feats, h_feats)
         self.layer2 = GCNLayer(h_feats, h_feats)
 
-    def train(self, optimizer, pos_batches, neg_batches, emb_size, predictor, loss, epochs):
+    def train(self, optimizer, pos_batches, neg_batches, emb_size, predictor, loss, device, epochs):
         
         history = defaultdict(list)
 
@@ -56,7 +56,7 @@ class GCNNeighb(GCNModel):
                 
                 # Current active nodes
                 curr_nodes = torch.nonzero(batch_pos_g.ndata['feat']).squeeze().unique()
-                sub_active_g = batch_pos_g.subgraph(curr_nodes) # Subgraph of active nodes (on which message passing is applied)
+                sub_active_g = batch_pos_g.subgraph(curr_nodes).to(device) # Subgraph of active nodes (on which message passing is applied)
 
                 # Forward on active nodes only. For other nodes, embedding at previous timestep is copied.
                 emb_N_active = self.forward(sub_active_g, sub_active_g.ndata['feat'].to(torch.float32))
@@ -88,7 +88,7 @@ class GCNNonNeighb(GCNModel):
         self.layer1 = GCNLayerNonNeighb(in_feats, h_feats)
         self.layer2 = GCNLayerNonNeighb(h_feats, h_feats)
 
-    def train(self, optimizer, pos_batches, neg_batches, emb_size, predictor, loss, epochs):
+    def train(self, optimizer, pos_batches, neg_batches, emb_size, predictor, loss, device, epochs):
         
         history = defaultdict(list)
 
@@ -97,6 +97,9 @@ class GCNNonNeighb(GCNModel):
             # Training for each timestep (20 seconds)
             for idx, (batch_pos_g, batch_neg_g) in enumerate(zip(pos_batches, neg_batches)):
                 
+                # To device
+                batch_pos_g.to(device)
+
                 # Forward on active nodes only. For other nodes, embedding at previous timestep is copied.
                 emb_NN = self.forward(batch_pos_g, batch_pos_g.ndata['feat'].to(torch.float32))
                 pos_score = predictor(batch_pos_g, emb_NN)

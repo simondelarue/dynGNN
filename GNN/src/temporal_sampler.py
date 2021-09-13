@@ -2,7 +2,7 @@ import numpy as np
 import dgl
 import torch
 
-def temporal_sampler(g, batch_size, timestep):
+def temporal_sampler(g, batch_size, timestep, device):
     ''' Returns a list of subgraph according to desired batch size. '''
     
     batches = []
@@ -18,7 +18,7 @@ def temporal_sampler(g, batch_size, timestep):
         rm_eids = eids[torch.logical_not(torch.logical_and(g.edata['timestamp'] >= period, 
                                                            g.edata['timestamp'] < (period + batch_period)))]
         
-        batch_g = dgl.remove_edges(g, rm_eids) # also remove the feature attached to the edge
+        batch_g = dgl.remove_edges(g, rm_eids) # also removes the feature attached to the edge
         
         # Later, use indexes to consider graph batch only if edges exist inside
         batches.append(batch_g)

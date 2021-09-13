@@ -17,7 +17,7 @@ def load_data(dataset):
 def save_data(data_df, dir, name):
     data_df.to_pickle(f'{dir}/{name}.pkl')
 
-def proprocess(df, dataset):
+def preprocess(df, dataset):
 
     print('Preprocessing data ...')
     if dataset == 'SF2H':
@@ -40,7 +40,7 @@ def temporal_graph(dataset):
 
     # Load and save data
     data_df = load_data(dataset)
-    preproc_data_df = proprocess(data_df, dataset)
+    preproc_data_df = preprocess(data_df, dataset)
     save_data(preproc_data_df, PREPROC_PATH, dataset)
 
     # Create temporal graph
