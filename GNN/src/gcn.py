@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from layer import GCNLayer, GCNLayerNonNeighb
+from layer import GCNLayer, GCNLayerNonNeighb, GCNLayer_time
 from utils import compute_auc
 
 class GCNModel(nn.Module):
@@ -98,7 +98,7 @@ class GCNNonNeighb(GCNModel):
             for idx, (batch_pos_g, batch_neg_g) in enumerate(zip(pos_batches, neg_batches)):
                 
                 # To device
-                batch_pos_g.to(device)
+                batch_pos_g = batch_pos_g.to(device)
 
                 # Forward on active nodes only. For other nodes, embedding at previous timestep is copied.
                 emb_NN = self.forward(batch_pos_g, batch_pos_g.ndata['feat'].to(torch.float32))
@@ -118,4 +118,44 @@ class GCNNonNeighb(GCNModel):
         self.embedding_ = emb_NN
         self.history_train_ = history
 
+        
+class GCNModel_time(GCNModel):
+    def __init__(self, in_feats, h_feats, time_dim):
+        super(GCNModel_time, self).__init__(in_feats, h_feats)
+        self.layer1 = GCNLayer_time(in_feats, time_dim, h_feats)
+        self.layer2 = GCNLayer_time(h_feats, 1, h_feats)
+        
+    def forward(self, g, features):
+        h = F.relu(self.layer1(g, features))
+        h = self.layer2(g, h)
+        return h  
+
+    def train(self, optimizer, train_g, train_pos_g, train_neg_g, predictor, loss, device, epochs):
+        
+        history = defaultdict(list) # Useful for plots
+        
+        for epoch in range(epochs):
+            
+            # To device
+            train_g = train_g.to(device)
+
+            # forward
+            h = self.forward(train_g, train_g.ndata['feat'].to(torch.float32)).cpu()
+            pos_score = predictor(train_pos_g, h)
+            neg_score = predictor(train_neg_g, h)
+            loss_val = loss(pos_score, neg_score)
+            
+            #Save results
+            history['train_loss'].append(loss_val.detach().numpy())
+            
+            # backward
+            optimizer.zero_grad()
+            loss_val.backward()
+            optimizer.step()
+
+            if epoch%100==0:
+                print(f'In epoch {epoch}, loss: {loss_val:.4f}')
+
+        self.embedding_ = h
+        self.history_train_ = history
 
