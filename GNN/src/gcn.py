@@ -124,10 +124,12 @@ class GCNModel_time(GCNModel):
         super(GCNModel_time, self).__init__(in_feats, h_feats)
         self.layer1 = GCNLayer_time(in_feats, time_dim, h_feats)
         self.layer2 = GCNLayer_time(h_feats, 1, h_feats)
+        self.layer3 = GCNLayer_time(h_feats, 1, h_feats)
         
     def forward(self, g, features):
         h = F.relu(self.layer1(g, features))
-        h = self.layer2(g, h)
+        h = F.relu(self.layer2(g, h))
+        h = self.layer3(g, h)
         return h  
 
     def train(self, optimizer, train_g, train_pos_g, train_neg_g, predictor, loss, device, epochs):
