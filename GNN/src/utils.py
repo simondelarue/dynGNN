@@ -8,17 +8,17 @@ from dgl.data.utils import save_graphs
 import torch.nn.functional as F
 from sklearn.metrics import roc_auc_score, roc_curve
 
-def compute_loss(pos_score, neg_score):
+def compute_loss(pos_score, neg_score, device):
     scores = torch.cat([pos_score, neg_score])
-    labels = torch.cat([torch.ones(pos_score.shape[0]), torch.zeros(neg_score.shape[0])])
+    labels = torch.cat([torch.ones(pos_score.shape[0]), torch.zeros(neg_score.shape[0])]).to(device)
     return F.binary_cross_entropy_with_logits(scores, labels)
 
 def compute_auc(pos_score, neg_score):
     
     # Compute auc
-    scores = torch.cat([pos_score, neg_score]).numpy()
+    scores = torch.cat([pos_score, neg_score]).cpu().numpy()
     labels = torch.cat(
-        [torch.ones(pos_score.shape[0]), torch.zeros(neg_score.shape[0])]).numpy()
+        [torch.ones(pos_score.shape[0]), torch.zeros(neg_score.shape[0])]).cpu().numpy()
     
     # Compute fpr and tpr
     fpr, tpr, _ = roc_curve(labels, scores)
@@ -28,6 +28,15 @@ def compute_auc(pos_score, neg_score):
 def write_log(filename, text):
     with open(filename, 'a') as f:
         f.write(text)
+
+def find_triplets(params, target_sum):
+    triplets = []
+    for val_a in params:
+        for val_b in params:
+            for val_g in params:
+                if ((val_a + val_b + val_g) == target_sum):
+                    triplets.append([val_a, val_b, val_g])
+    return triplets
 
 def sample_random_node(g, n):
     return int(np.random.choice(g.nodes().numpy(), n))
@@ -44,6 +53,14 @@ def sample_non_neighbors(g, node, all_nodes):
     non_neighb_nodes = np.array(list(all_nodes - set(src_nodes.numpy())))
     
     return torch.from_numpy(non_neighb_nodes)
+
+def sample_neighbors(g, node):
+    ''' Return a list of neighbors of a specific node in a graph. '''
+    
+    # Neighbors nodes
+    src_nodes = dgl.in_subgraph(g, int(node)).edges()[0]
+    
+    return src_nodes     
 
 def make_edge_list(src, dest, t, mask):
     return [(u, v, t) for u, v, t in zip(src[mask].numpy(), dest[mask].numpy(), t[mask].numpy())]
@@ -168,9 +185,7 @@ def train_test_split(g, val_size=0.15, test_size=0.15):
 
     # Save graphs
     graphs_to_save = [train_g, train_pos_g, train_neg_g, val_pos_g, val_neg_g, test_pos_g, test_neg_g]
-    for graph in graphs_to_save:
-        save_graphs(f'../preprocessed_data/data.bin', graphs_to_save)
-
+    save_graphs(f'../preprocessed_data/data.bin', graphs_to_save)
     print('Done !')
 
     return train_g, train_pos_g, train_neg_g, val_pos_g, val_neg_g, test_pos_g, test_neg_g

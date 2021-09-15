@@ -3,8 +3,7 @@ import torch.nn as nn
 import dgl.function as fn
 import torch.nn.functional as F
 from overrides import overrides
-
-from utils import sample_non_neighbors
+from utils import sample_non_neighbors, sample_neighbors
 
 class GCNLayer(nn.Module):
     def __init__(self, features_in, features_out):
@@ -30,11 +29,11 @@ class GCNLayerNonNeighb(GCNLayer):
         curr_nodes = torch.nonzero(g.ndata['feat']).squeeze().unique()
         
         # All nodes set 
-        all_nodes_set = set(g.cpu().nodes().numpy())
+        all_nodes_set = set(g.nodes().numpy())
         
         # Initialize Non-neighbors embedding Tensor
         h_NN = features.clone()
-        
+
         # Update embedding (for active nodes at timestep only) using non-neighbors features
         for node in curr_nodes:
             non_neighbors_nodes = sample_non_neighbors(g, node, all_nodes_set)
@@ -60,3 +59,29 @@ class GCNLayer_time(GCNLayer):
             h_N = torch.flatten(g.ndata['h_N'], start_dim=1)
             h_N = F.normalize(h_N, dim=1)
             return self.linear_time(h_N)
+
+
+class GCNLayerFull(GCNLayer):
+    def __init__(self, features_in, features_out):
+        super(GCNLayerFull, self).__init__(features_in, features_out)
+        self.linear = nn.Linear(features_in, features_out)
+        
+    @overrides
+    def forward(self, g, features):
+        
+        # Current active nodes
+        curr_nodes = torch.nonzero(g.ndata['feat']).squeeze().unique()
+        
+        # Initialize Non-neighbors embedding Tensor
+        h_N = features.clone()
+        
+        # Update only current node's embedding
+        for node in curr_nodes:
+            neighbors_nodes = sample_neighbors(g, node)
+            h_N_tmp = torch.sum(features[neighbors_nodes, :], dim=0)
+            h_N[node, :] = features[node, :] + h_N_tmp
+            
+        # Normalize result
+        h_N_norm = F.normalize(h_N, dim=1)
+        
+        return self.linear(h_N_norm)
