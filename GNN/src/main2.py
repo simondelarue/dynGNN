@@ -17,7 +17,7 @@ from predictor import DotPredictor
 from gcn import GCNNeighb, GCNNonNeighb, GCNModel_time
 
 LOG_PATH = f'{os.getcwd()}/logs'
-logfile = 'log_GCN_full_cuda.txt'
+logfile = 'log_GCN_time_cuda.txt'
 with open(f'{LOG_PATH}/{logfile}', 'w') as f:
     f.write('EXECUTION LOG \n\n')
 
@@ -67,6 +67,7 @@ write_log(f'{LOG_PATH}/{logfile}', f"\nElapsed time : {end-start}")
 
 # ------ Build Adjacency matrix ------
 
+print('\nBuild Adjacency Tensor with time information ...')
 # Training dataframe
 max_train_time = int(train_pos_g.edata['timestamp'].max())
 df_train = df_preproc[df_preproc['t']<=max_train_time]
@@ -89,7 +90,7 @@ for node in train_pos_g.nodes():
 
 # ------ Add features to g ------
 train_g.ndata['feat'] = adj_self_edges
-
+print('Done!')
 
 # ====== Graph Neural Networks ======
 
@@ -105,7 +106,7 @@ optimizer = torch.optim.Adam(itertools.chain(model.parameters()), lr=LR)
 
 # Training
 #start = time.time()
-print('\n Full GCN training ...')
+print('\nFull GCN training ...')
 model.train(optimizer=optimizer,
                     train_g=train_g,
                     train_pos_g=train_pos_g,
@@ -121,6 +122,6 @@ print(f'Done!')
 print(f" ====> Test AUC : {history_score['test_auc']:.4f}")
 write_log(f'{LOG_PATH}/{logfile}', f"Test AUC : {history_score['test_auc']}")
 
-#end = time.time()
-#print(f'Elapsed time : {end-start}s')
-#write_log(f'{LOG_PATH}/{logfile}', f"\nElapsed time : {end-start}")
+# Save results
+logfile_history = 'history_time'
+np.save(f'{LOG_PATH}/{logfile_history}.npy', history_score)
