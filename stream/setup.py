@@ -18,4 +18,4 @@ setup(
 )
 
 # Compile with command line below : 
-# python setup.py build_ext --inplace
+# python3 setup.py build_ext --inplace
