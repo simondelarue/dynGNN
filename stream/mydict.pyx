@@ -26,9 +26,11 @@ class MyDict():
         # Inputs
         cdef unordered_map[int, float] v_map
         cdef unordered_map[int, unordered_map[int, float]] A #= self.my_dict
+        cdef unordered_map[int, float] values
         # Iterators
         cdef unordered_map[int, unordered_map[int, float]].iterator keys_it 
         cdef unordered_map[int, float].iterator values_it
+        cdef unordered_map[int, float].iterator values_v_it
         # Result
         cdef unordered_map[int, float] res
         cdef float tmp
@@ -45,25 +47,33 @@ class MyDict():
         keys_it = A.begin()
         end = time.time()
         #print(f'    Cast time : {(end-start):.7f}s')
-
         start = time.time()
+
         # Iterates over keys in left matrix
         while(keys_it != A.end()):
-            values_it = dereference(keys_it).second.begin()
             tmp = 0.0
-
-            # Iterates over values in left matrix
-            while(values_it != dereference(keys_it).second.end()):
-                # Computes dot-product
-                tmp += dereference(values_it).second * v_map[dereference(values_it).first]
-                postincrement(values_it)
+            # Iterates over smallest set of values between A and v
+            if A.size() > dereference(keys_it).second.size():
+                values_it = dereference(keys_it).second.begin()
+                while(values_it != dereference(keys_it).second.end()):
+                    # Computes dot-product
+                    tmp += dereference(values_it).second * v_map[dereference(values_it).first]
+                    postincrement(values_it)
+            else:
+                values_v_it = v_map.begin()
+                values = dereference(keys_it).second
+                while(values_v_it != v_map.end()):
+                    # Computes dot-product
+                    tmp += dereference(values_v_it).second * values[dereference(values_v_it).first]
+                    postincrement(values_v_it)
 
             # Update result
-            res[dereference(keys_it).first] = tmp
+            if tmp != 0.0:
+                res[dereference(keys_it).first] = tmp
             postincrement(keys_it)
         end = time.time()
         #print(f'   Loop time : {(end-start):.7f}s')
-        
+
         return res
 
     def dot_opt(self, v):
@@ -117,6 +127,7 @@ class MyDict():
         # Iterators
         cdef cpp_map[int, cpp_map[int, float]].iterator keys_it 
         cdef cpp_map[int, float].iterator values_it
+        cdef cpp_map[int, float].iterator values_v_it
         # Result
         cdef cpp_map[int, float] res
         cdef float tmp
@@ -126,26 +137,32 @@ class MyDict():
         elif isinstance(v, MyDict):
             v_map = v.my_dict
 
+        A = self.my_dict # This cast operation takes most of the computation time !
         keys_it = A.begin()
 
-        start = time.time()
         # Iterates over keys in left matrix
         while(keys_it != A.end()):
-            values_it = dereference(keys_it).second.begin()
             tmp = 0.0
-
-            # Iterates over values in left matrix
-            while(values_it != dereference(keys_it).second.end()):
-                # Computes dot-product
-                tmp += dereference(values_it).second * v_map[dereference(values_it).first]
-                postincrement(values_it)
+            # Iterates over smallest set of values between A and v
+            if A.size() > dereference(keys_it).second.size():
+                values_it = dereference(keys_it).second.begin()
+                while(values_it != dereference(keys_it).second.end()):
+                    # Computes dot-product
+                    tmp += dereference(values_it).second * v_map[dereference(values_it).first]
+                    postincrement(values_it)
+            else:
+                values_v_it = v_map.begin()
+                values = dereference(keys_it).second
+                while(values_v_it != v_map.end()):
+                    # Computes dot-product
+                    tmp += dereference(values_v_it).second * values[dereference(values_v_it).first]
+                    postincrement(values_v_it)
 
             # Update result
-            res[dereference(keys_it).first] = tmp
+            if tmp != 0.0:
+                res[dereference(keys_it).first] = tmp
             postincrement(keys_it)
-        end = time.time()
-        #print(f'   Loop time : {(end-start):.7f}s')
-        
+
         return res
 
     def __str__(self):

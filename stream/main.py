@@ -1,4 +1,5 @@
 import numpy as np
+import scipy
 from scipy import sparse
 from scipy.sparse.csr import csr_matrix
 from scipy.sparse.coo import coo_matrix
@@ -16,7 +17,7 @@ def csr2dict(csr_matrix):
     adj = {}
     
     # Fill adjacency dictionary
-    for i in range(1, len(csr_matrix.indptr)-1):
+    for i in range(1, len(csr_matrix.indptr)):
         if (csr_matrix.indptr[i] - csr_matrix.indptr[i-1]>0):
             columns = csr_matrix.indices[csr_matrix.indptr[i-1]:csr_matrix.indptr[i]]
             data = csr_matrix.data[csr_matrix.indptr[i-1]:csr_matrix.indptr[i]]
@@ -37,13 +38,24 @@ def create_sparse_matrix(n, density):
 def vecmul(adj, v):
     ''' Matrix-vector product with dictionaries. '''
     res = {}
+    v_len = len(v)
     for key, value in adj.items():
-        for key_col, value_col in value.items():
-            res[key] = res.get(key, 0) + value_col*v[key_col]
+        tmp = 0
+        # Iterates over smallest set of values between columns in A and values in v
+        if len(value) < v_len:
+            for key_col, value_col in value.items():
+                #res[key] = res.get(key, 0) + value_col*v.get(key_col, 0)
+                tmp += value_col * v.get(key_col, 0)
+        else:
+            for vec_col, vec_value in v.items():
+                #res[key] = res.get(key, 0) + value.get(vec_col, 0) * vec_value
+                tmp += value.get(vec_col, 0) * vec_value
+        if tmp != 0:
+            res[key] = tmp
     return res
 
 
-def run(ns, densities, method):
+def run(ns, densities, method, dense_v=True):
 
     history_tot = {}
     for n in ns:
@@ -54,8 +66,12 @@ def run(ns, densities, method):
                 # CSR adjacency
                 A = create_sparse_matrix(nb_nodes, density)
                 # Random vector
-                v = np.random.randn(A.shape[0])
-                v_dict = {k: v for k, v in enumerate(v)}
+                if dense_v:
+                    v = np.random.randn(A.shape[0])
+                    v_dict = {k: v for k, v in enumerate(v) if v!=0}
+                else:
+                    v = scipy.sparse.random(A.shape[0], 1, density=density)
+                    v_dict = {k: v[0, 0] for k, v in enumerate(v.todense()) if v!=0}
                 # Dictionary adjacency
                 adj = csr2dict(A)
 
@@ -124,12 +140,20 @@ def run(ns, densities, method):
                     end = time.time()
                     history[density].append(end-start)
 
+                elif method == 'DOK':
+                    A_dok = A.todok()
+                    # Dot-product with cython dict
+                    start = time.time()
+                    res = A_dok.dot(v)
+                    end = time.time()
+                    history[density].append(end-start)
+
         history_tot[n] = history
     return history_tot
 
-def run_toy(method='CSR'):
+def run_toy(method='CSR', dense_v=True):
 
-    print(' ==== TOY EXAMPLE === ')
+    print(f' ==== TOY EXAMPLE ({method}) === ')
     # ----- myDict
     A_dense = np.array([[0, 0, 0, 0, 0],
                         [0, 0, 0, 1, 1],
@@ -139,13 +163,18 @@ def run_toy(method='CSR'):
     A = csr_matrix(A_dense)
     if method=='cython_dict':
         A = MyDict(A)
-        print(f'my dict : {my_dict}')
+        print(f'my dict : {A}')
+    elif method=='python_dict':
+        A = csr2dict(A)
     elif method=='COO':
         A = coo_matrix(A_dense)
 
     # ----- myVect (random)
-    #v = {k: v for k, v in enumerate(np.random.rand(A.shape[0]))}
-    my_v = {0: 0.5, 1: 1, 2: 0.5, 3: 2, 4: 1}
+    if dense_v:
+        my_v = {0: 0.5, 1: 1, 2: 0.5, 3: 2, 4: 1}
+    else:
+        my_v = {2: 1}
+
     if method=='cython_dict':
         my_v = MyDict(my_v)
         print('My random v : ', my_v)
@@ -156,9 +185,16 @@ def run_toy(method='CSR'):
     # Note : random vector v can either be a dictionary or a MyDict object 
     # (if the latter is true, it is the associated unordered map of the object
     # which is considered when processing dot product).
-    res = A.dot(my_v)
+    if method=='python_dict':
+        res = vecmul(A, my_v)
+    else:
+        res = A.dot(my_v)
+
     print(f'Result = {res}')
-    print('Correct result : {3: 1.0, 2: 0.5, 1: 3.0}')
+    if dense_v:
+        print('Correct result : {3: 1.0, 2: 0.5, 1: 3.0}')
+    else:
+        print('Correct result : {2: 1.0, 3: 1.0}')
 
 
 def print_history(history, method):
@@ -171,20 +207,23 @@ def print_history(history, method):
 if __name__=='__main__':
 
     # ===== TOY EXAMPLE ======
-    '''run_toy(method='COO')'''
+    '''run_toy(method='cython_dict', dense_v=False)'''
 
     # ===== RUN OVER SET OF PARAMS ======
     # Parameters
-    ns = [1e3, 1e4, 1e5]#, 1e6]
-    densities = [1e-3, 1e-4, 1e-5, 1e-6]
+    #ns = [1e3, 1e4, 1e5]#, 1e6]
+    ns = [1e-5, 1e6]
+    #densities = [1e-3, 1e-4, 1e-6]
+    densities = [1e-5, 1e-6]
+    dense_v = False
 
     # Dot-products
-    #methods = ['numpy', 'python_dict', 'cython_dict', 'cython_dict_map']
-    methods = ['CSR', 'CSC', 'COO', 'LIL', 'cython_dict', 'cython_dict_map', 'python_dict']
+    #methods = ['CSR', 'CSC', 'COO', 'LIL', 'DOK', 'cython_dict', 'cython_dict_map', 'python_dict']
+    methods = ['CSR', 'CSC', 'COO', 'python_dict', 'cython_dict']
     hist_list = []
 
     for method in methods:
-        hist = run(ns, densities, method)
+        hist = run(ns, densities, method, dense_v=dense_v)
         print_history(hist, method)
         
         # convert to DataFrame
@@ -196,6 +235,4 @@ if __name__=='__main__':
 
     # Transform results for plotting
     df_plot = pd.concat(hist_list)
-    df_plot.to_pickle('res_plot_full.pkl', protocol=3)
-    
-    
+    df_plot.to_pickle('res_plot_full_sparse_v_LARGE.pkl', protocol=3)
