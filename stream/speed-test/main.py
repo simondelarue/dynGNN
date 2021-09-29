@@ -6,6 +6,7 @@ from scipy.sparse.coo import coo_matrix
 import time
 from collections import defaultdict
 import pandas as pd
+import random
 from mydict import MyDict
 
 
@@ -118,15 +119,34 @@ def run(ns, densities, method, dense_v=True):
 
                 elif method == 'COO':
                     A_coo = A.tocoo()
-                    # Dot-product with cython dict
+                    # Dot-product 
                     start = time.time()
                     res = A_coo.dot(v)
                     end = time.time()
                     history[density].append(end-start)
-                
+
+                elif method == 'COO_shuffled':
+                    A_coo = A.tocoo()
+                    row = A_coo.row
+                    col = A_coo.col
+                    data = A_coo.data
+                    mask = np.random.choice(np.arange(0, len(row)), size=len(row), replace=False)
+                    # Shuffle coo matrix
+                    row = row[mask]
+                    col = col[mask]
+                    data = data[mask]
+                    A_coo = coo_matrix((data, (row, col)))
+                    # Reshape v according to COO matrix shape
+                    v = np.array(v.todense()).ravel()[:A_coo.shape[1]]
+                    # Dot product
+                    start = time.time()
+                    res = A_coo.dot(v)
+                    end = time.time()
+                    history[density].append(end-start)
+
                 elif method == 'CSC':
                     A_csc = A.tocsc()
-                    # Dot-product with cython dict
+                    # Dot-product 
                     start = time.time()
                     res = A_csc.dot(v)
                     end = time.time()
@@ -134,7 +154,7 @@ def run(ns, densities, method, dense_v=True):
 
                 elif method == 'LIL':
                     A_lil = A.tolil()
-                    # Dot-product with cython dict
+                    # Dot-product 
                     start = time.time()
                     res = A_lil.dot(v)
                     end = time.time()
@@ -142,7 +162,7 @@ def run(ns, densities, method, dense_v=True):
 
                 elif method == 'DOK':
                     A_dok = A.todok()
-                    # Dot-product with cython dict
+                    # Dot-product 
                     start = time.time()
                     res = A_dok.dot(v)
                     end = time.time()
@@ -168,6 +188,18 @@ def run_toy(method='CSR', dense_v=True):
         A = csr2dict(A)
     elif method=='COO':
         A = coo_matrix(A_dense)
+    elif method == 'COO_shuffled':
+        A = coo_matrix(A_dense)
+        row = A.row
+        col = A.col
+        data = A.data
+        mask = np.random.choice(np.arange(0, len(row)), size=len(row), replace=False)
+        # Shuffle coo matrix
+        row = row[mask]
+        col = col[mask]
+        data = data[mask]
+        A = coo_matrix((data, (row, col)))
+
 
     # ----- myVect (random)
     if dense_v:
@@ -178,8 +210,11 @@ def run_toy(method='CSR', dense_v=True):
     if method=='cython_dict':
         my_v = MyDict(my_v)
         print('My random v : ', my_v)
-    elif method=='COO':
-        my_v = coo_matrix(np.array([0.5, 1, 0.5, 2, 1])).T
+    elif method in ['COO', 'COO_shuffled']:
+        if dense_v:
+            my_v = coo_matrix(np.array([0.5, 1, 0.5, 2, 1])).T
+        else:
+            my_v = coo_matrix(np.array([0, 0, 1, 0, 0])).T
 
     # ----- Dot-product
     # Note : random vector v can either be a dictionary or a MyDict object 
@@ -207,19 +242,22 @@ def print_history(history, method):
 if __name__=='__main__':
 
     # ===== TOY EXAMPLE ======
-    '''run_toy(method='cython_dict', dense_v=False)'''
+    '''dense_v = True
+    run_toy(method='COO_shuffled', dense_v=dense_v)
+    run_toy(method='cython_dict', dense_v=dense_v)
+    run_toy(method='python_dict', dense_v=dense_v)'''
 
     # ===== RUN OVER SET OF PARAMS ======
     # Parameters
-    #ns = [1e3, 1e4, 1e5]#, 1e6]
-    ns = [1e-5, 1e6]
-    #densities = [1e-3, 1e-4, 1e-6]
-    densities = [1e-5, 1e-6]
+    ns = [1e3, 1e4, 1e5, 1e6]
+    #ns = [1e-5, 1e6]
+    #densities = [1e-3, 1e-4, 1e-5]
+    densities = [1e-4, 1e-5, 1e-6]
     dense_v = False
 
     # Dot-products
     #methods = ['CSR', 'CSC', 'COO', 'LIL', 'DOK', 'cython_dict', 'cython_dict_map', 'python_dict']
-    methods = ['CSR', 'CSC', 'COO', 'python_dict', 'cython_dict']
+    methods = ['COO_shuffled', 'CSR', 'CSC', 'COO', 'python_dict', 'cython_dict']
     hist_list = []
 
     for method in methods:
@@ -235,4 +273,4 @@ if __name__=='__main__':
 
     # Transform results for plotting
     df_plot = pd.concat(hist_list)
-    df_plot.to_pickle('res_plot_full_sparse_v_LARGE.pkl', protocol=3)
+    df_plot.to_pickle('results/res_plot_full_sparse_v_shuff.pkl', protocol=3)
