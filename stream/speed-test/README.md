@@ -1,4 +1,4 @@
-## Speed tests for data structure choice
+# Speed tests for data structure choice
 
 In order to chose the right data structure to use when dealing with streams of graphs over time, we performed some speed-tests for basic operations :
 * Sparse Matrix - Dense Vector multiplication : `SpMDV`  
@@ -15,7 +15,7 @@ We considered the following data structures :
 * `cython_dict` : cythonized version of `python_dict`, where the underlying structure used is a C++ `unordered map`
 * `cython_dict_map` : cythonized version of `python_dict`, where the underlying structure used is a C++ `map`
 
-### Usage
+## Usage
 
 Compile cython code then execute python script with the following command lines :
 
@@ -24,6 +24,6 @@ python3 setup.py build_ext --inplace
 python3 main.py
 ```
 
-### Results
+## Results
 
 Results are available in `stream.ipynb` file.
