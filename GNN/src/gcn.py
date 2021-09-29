@@ -4,8 +4,10 @@ import torch.nn as nn
 import torch.nn.functional as F
 import time
 
-from layer import GCNLayer, GCNLayerNonNeighb, GCNLayer_time, GCNLayerFull
-from utils import compute_auc
+from layer import *
+from dgl.nn.pytorch.conv import GraphConv
+from dgl.nn import SAGEConv
+from utils import compute_auc, compute_classif_report, compute_f1_score
 from overrides import overrides
 
 class GCNModel(nn.Module):
@@ -17,25 +19,98 @@ class GCNModel(nn.Module):
         h = self.layer2(g, h)
         return h
 
-    def test(self, predictor, test_pos_g, test_neg_g, metric='auc', return_all=True):
+    def train(self, optimizer, train_g, train_pos_g, train_neg_g, predictor, loss, device, epochs):
+        
+        history = defaultdict(list) # Useful for plots
+        
+        for epoch in range(epochs):
+            
+            # To device
+            train_g = train_g.to(device)
+            train_pos_g = train_pos_g.to(device)
+            train_neg_g = train_neg_g.to(device)
+
+            # forward
+            h = self.forward(train_g, train_g.ndata['feat'].to(torch.float32)).cpu()
+            pos_score = predictor(train_pos_g, h.to(device))
+            neg_score = predictor(train_neg_g, h.to(device))
+            loss_val = loss(pos_score, neg_score, device)
+            
+            #Save results
+            history['train_loss'].append(loss_val.cpu().detach().numpy())
+            
+            # backward
+            optimizer.zero_grad()
+            loss_val.backward()
+            optimizer.step()
+
+            if epoch%10==0:
+                print(f'In epoch {epoch}, loss: {loss_val:.5f}')
+
+        print(f'Embedding shape : {h.shape}')
+        self.embedding_ = h
+        self.history_train_ = history
+
+    def test(self, predictor, test_pos_g, test_neg_g, metric, feat_struct, step_prediction=None, return_all=True):
 
         history = {} # useful for plots
     
         with torch.no_grad():
+
+            if feat_struct == 'temporal_edges':
+                # Average last k embeddings 
+                if step_prediction == 'single':
+                    k_embs = 1
+                elif step_prediction == 'multi':
+                    k_embs = 5
+                    
+                res_emb = torch.zeros(test_pos_g.number_of_nodes(), 20)
+                filt_emb = self.embedding_[-test_pos_g.number_of_nodes()*k_embs:, :]
+                for i in range(test_pos_g.number_of_nodes()):
+                    res_emb[i, :] = torch.mean(filt_emb[i::test_pos_g.number_of_nodes()], dim=0)
+                self.embedding_ = res_emb
+                print(f'RES EMB  : {res_emb.size()}')
+                print(f'RES EMB : {res_emb}')
+
             pos_score = predictor(test_pos_g, self.embedding_)
             neg_score = predictor(test_neg_g, self.embedding_)
+
             if metric=='auc':
                 auc, fpr, tpr = compute_auc(pos_score, neg_score)
-            
-            # Save results
-            history['test_auc'] = auc
-            history['test_fpr'] = fpr
-            history['test_tpr'] = tpr
-            
+                # Save results
+                history[f'test_{metric}'] = auc
+                history['test_fpr'] = fpr
+                history['test_tpr'] = tpr
+            elif metric=='f1_score':
+                score = compute_f1_score(pos_score, neg_score, 'macro')
+                # Save results
+                history[f'test_{metric}'] = score
+
             if return_all:
                 return history, pos_score, neg_score
             else:
                 return history
+
+
+class GCNModelTime(GCNModel):
+    def __init__(self, in_feats, h_feats, time_dim):
+        super(GCNModelTime, self).__init__(in_feats, h_feats)
+        self.layer1 = GCNLayerTime(in_feats, time_dim, h_feats)
+        self.layer2 = GCNLayerTime(h_feats, 1, h_feats)
+
+
+class GCNGraphConv(GCNModel):
+    def __init__(self, in_feats, h_feats):
+        super(GCNGraphConv, self).__init__(in_feats, h_feats)
+        self.layer1 = GraphConv(in_feats, h_feats)
+        self.layer2 = GraphConv(h_feats, h_feats)
+
+
+class GraphSAGE(GCNModel):
+    def __init__(self, in_feats, h_feats):
+        super(GraphSAGE, self).__init__(in_feats, h_feats)
+        self.layer1 = SAGEConv(in_feats, h_feats, 'mean')
+        self.layer2 = SAGEConv(h_feats, h_feats, 'mean')
 
 
 class GCNNeighb(GCNModel):
@@ -124,52 +199,6 @@ class GCNNonNeighb(GCNModel):
                 optimizer.step()
         
         self.embedding_ = emb_NN
-        self.history_train_ = history
-
-        
-class GCNModel_time(GCNModel):
-    def __init__(self, in_feats, h_feats, time_dim):
-        super(GCNModel_time, self).__init__(in_feats, h_feats)
-        self.layer1 = GCNLayer_time(in_feats, time_dim, h_feats)
-        self.layer2 = GCNLayer_time(h_feats, 1, h_feats)
-        self.layer3 = GCNLayer_time(h_feats, 1, h_feats)
-        
-    @overrides
-    def forward(self, g, features):
-        h = F.relu(self.layer1(g, features))
-        h = F.relu(self.layer2(g, h))
-        h = self.layer3(g, h)
-        return h  
-
-    def train(self, optimizer, train_g, train_pos_g, train_neg_g, predictor, loss, device, epochs):
-        
-        history = defaultdict(list) # Useful for plots
-        
-        for epoch in range(epochs):
-            
-            # To device
-            train_g = train_g.to(device)
-            train_pos_g = train_pos_g.to(device)
-            train_neg_g = train_neg_g.to(device)
-
-            # forward
-            h = self.forward(train_g, train_g.ndata['feat'].to(torch.float32)).cpu()
-            pos_score = predictor(train_pos_g, h.to(device))
-            neg_score = predictor(train_neg_g, h.to(device))
-            loss_val = loss(pos_score, neg_score, device)
-            
-            #Save results
-            history['train_loss'].append(loss_val.cpu().detach().numpy())
-            
-            # backward
-            optimizer.zero_grad()
-            loss_val.backward()
-            optimizer.step()
-
-            if epoch%100==0:
-                print(f'In epoch {epoch}, loss: {loss_val:.4f}')
-
-        self.embedding_ = h
         self.history_train_ = history
 
 

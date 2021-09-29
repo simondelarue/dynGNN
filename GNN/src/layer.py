@@ -18,6 +18,21 @@ class GCNLayer(nn.Module):
             return self.linear(h_N)
 
 
+class GCNLayerTime(GCNLayer):
+    def __init__(self, features_in, time_dimension, features_out):
+        super(GCNLayerTime, self).__init__(features_in, features_out)
+        self.linear_time = nn.Linear(features_in*time_dimension, features_out)
+    
+    @overrides
+    def forward(self, g, features):
+        with g.local_scope():
+            g.ndata['h'] = features
+            g.update_all(message_func=fn.copy_u('h', 'm'), reduce_func=fn.sum('m', 'h_N'))
+            h_N = torch.flatten(g.ndata['h_N'], start_dim=1)
+            h_N = F.normalize(h_N, dim=1)
+            return self.linear_time(h_N)
+
+
 class GCNLayerNonNeighb(GCNLayer):
     def __init__(self, features_in, features_out):
         super(GCNLayerNonNeighb, self).__init__(features_in, features_out)
@@ -44,21 +59,6 @@ class GCNLayerNonNeighb(GCNLayer):
         h_NN_norm = F.normalize(h_NN, dim=1)
         
         return self.linear(h_NN_norm)
-
-
-class GCNLayer_time(GCNLayer):
-    def __init__(self, features_in, time_dimension, features_out):
-        super(GCNLayer_time, self).__init__(features_in, features_out)
-        self.linear_time = nn.Linear(features_in*time_dimension, features_out)
-    
-    @overrides
-    def forward(self, g, features):
-        with g.local_scope():
-            g.ndata['h'] = features
-            g.update_all(message_func=fn.copy_u('h', 'm'), reduce_func=fn.sum('m', 'h_N'))
-            h_N = torch.flatten(g.ndata['h_N'], start_dim=1)
-            h_N = F.normalize(h_N, dim=1)
-            return self.linear_time(h_N)
 
 
 class GCNLayerFull(GCNLayer):
