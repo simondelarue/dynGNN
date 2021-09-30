@@ -3,6 +3,11 @@ import numpy as np
 import dgl
 import torch
 import os
+import time
+import random
+from collections import defaultdict
+from line_profiler import LineProfiler
+from multiprocessing import Pool
 from os.path import exists
 from scipy.sparse import coo_matrix
 from data_loader import DataLoader
@@ -72,134 +77,131 @@ class StreamGraph():
             self.test_neg_g.add_edges(self.test_neg_g.nodes(), self.test_neg_g.nodes())
             self.test_neg_seen_g.add_edges(self.test_neg_seen_g.nodes(), self.test_neg_seen_g.nodes())
 
+    def _reindex_nodes_time(self):
+        res = {}
+        val = 0
+        for i, j, t in zip(self.data_df['src'], self.data_df['dest'], self.data_df['t']):
+            if f'{i}_{t}' not in res:
+                res[f'{i}_{t}'] = val
+                val += 1
+            if f'{j}_{t}' not in res:
+                res[f'{j}_{t}'] = val
+                val += 1
+        return res
+       
+    def _func_update(self, src_node, curr_nodes_list, pos_edge_list, time_idx_nodes, t):
+
+        rows = np.array([], dtype=np.int16)
+        cols = np.array([], dtype=np.int16)
+        data = np.array([], dtype=np.int16)
+
+        curr_nodes_list.remove(src_node) # Self edge is not allowed
+        for i in range(3):
+            neg_edge = (src_node, random.choice(curr_nodes_list)) 
+            if neg_edge not in pos_edge_list:
+                rows = np.append(rows, [time_idx_nodes[f'{src}_{t}'] for src in neg_edge])
+                cols = np.append(cols, [time_idx_nodes[f'{dest}_{t}'] for dest in neg_edge[::-1]])
+                data = np.append(data, [1]*len(rows))
+                break
+
+        return rows, cols, data
+
 
     def __add_temporal_edges_graph(self, g, timerange):
-        len_t = len(timerange)
+
+        # Dictionary with |V| keys, and last k time indexes at which node was seen.
+        # This dictionary is useful to gather embeddings of all nodes at last k timesteps.
+        self.last_k_emb_idx = defaultdict(list)
+
+        # Reindex all nodes according to time
+        time_idx_nodes = self._reindex_nodes_time()
+
+        # Build PDAG
         list_timerange = list(timerange)
-        nb_nodes = g.number_of_nodes()
         min_t = int(g.edata['timestamp'].min())
         max_t = int(g.edata['timestamp'].max())
         df = self.data_df[(self.data_df['t']<max_t) & (self.data_df['t']>=min_t)]
 
-        print(f'min_t : {min_t} - max_t : {max_t}')
-        print(f'Shape df : {df.shape} (original df shape : {self.data_df.shape})')
-
-        if self.add_self_edges:
-            data = np.ones(df.shape[0]*2, dtype=np.int8)
-        else:
-            data = np.ones(df.shape[0], dtype=np.int8)
-        rows = np.array([], dtype=np.int8)
-        cols = np.array([], dtype=np.int8)
-        neg_rows = np.array([], dtype=np.int8)
-        neg_cols = np.array([], dtype=np.int8)
-        neg_data = np.array([], dtype=np.int8)
+        unique_t = df['t'].unique()
+        rows = np.array([], dtype=np.int16)
+        cols = np.array([], dtype=np.int16)
+        rows_neg = np.array([], dtype=np.int16)
+        cols_neg = np.array([], dtype=np.int16)
 
         prev_nodes = set()
-        prev_nodes_neg = set()
-        curr_nodes = set()
-        curr_nodes_neg = set()
         prev_t = 0
-        prev_t_index = 0
-        prev_adj_offset = 0
 
-        for idx, t in enumerate(df['t'].unique()):
-            
-            if idx % 20 == 0:
-                print(f'\n IDX : {idx} ')
-            t_index = list_timerange.index(t) + 1
-            adj_offset = t_index * nb_nodes
-            
-            # Positive edges ----------------------
+        for idx, t in enumerate(unique_t):
+
             df_t = df[df['t']==t].copy()
 
-            curr_nodes = set(np.array(df_t['src']))
-            curr_nodes.update(set(np.array(df_t['dest'])))
-
-            #print(f'\nCurrent nodes: {curr_nodes}')
-
-            src_t = np.array(df_t['src']) 
+            # -------- Positive edges ---------
+            src_t = np.array(df_t['src'])
             dest_t = np.array(df_t['dest'])
 
-            if self.add_self_edges:
-                src_t_temp = src_t
-                dest_t_temp = dest_t
-                src_t = np.append(src_t, dest_t_temp)
-                dest_t = np.append(dest_t, src_t_temp)
+            # Directed to undirected
+            src_t_temp = src_t
+            dest_t_temp = dest_t
+            src_t = np.append(src_t, dest_t_temp)
+            dest_t = np.append(dest_t, src_t_temp)
 
-            # Fill COO adjacency matrix 
-            rows = np.append(rows, src_t + adj_offset)
-            cols = np.append(cols, dest_t + adj_offset)
-
-            #print(f'\nROWS  : {rows}')
-            #print(f'COLS  : {cols}')
-
-            # Negative sampling ---------------------
-            # All possible edges at time t
-            all_edges_permutations = list(permutations(np.array(list(curr_nodes)), 2))
-            #print(f'Permutations = {all_edges_permutations}')
-            # Positive edges at time t
-            pos_edges_list = [(u, v) for u, v in zip(src_t, dest_t)]
-            #print(f'Positive edges : {pos_edges_list}')
-            tries = []
-            random_edges = []
-            while len(neg_data) < len(pos_edges_list) and len(tries) < len(all_edges_permutations):
-                # Sample random edge in all possible edges with nodes at time t
-                random_idx = np.random.randint(0, len(all_edges_permutations))
-                random_edge = all_edges_permutations[random_idx]
-                # Keep random edge if not equal to any positive edge at time t
-                if random_edge not in pos_edges_list:
-                    neg_data = np.append(neg_data, 1)
-                    neg_rows = np.append(neg_rows, random_edge[0])
-                    neg_cols = np.append(neg_cols, random_edge[1])
-                    random_edges.append(random_edge)
-                tries.append(random_idx)
-            curr_nodes_neg = set(neg_rows)
-            curr_nodes_neg.update(set(neg_cols))
-
-            #print(f'\nCurrent nodes NEG: {curr_nodes_neg}')
-            #print(f'Negative edges : {random_edges}')
+            curr_nodes = set(src_t).union(set(dest_t))
+            # Save time indexes for seen nodes
+            for node in curr_nodes:
+                self.last_k_emb_idx[node].append(time_idx_nodes[f'{node}_{t}']) 
             
-            # Temporal edges ---------------------- 
-            # These edges are directed from previous timestep to current timestep.
-            if t_index == (prev_t_index + 1):
-                temporal_nodes = prev_nodes.intersection(curr_nodes)
-                temporal_nodes_neg = prev_nodes_neg.intersection(curr_nodes_neg)
+            temporal_nodes = curr_nodes.intersection(prev_nodes)
 
-                #print(f'\nTemporal nodes : {temporal_nodes}')
-                #print(f'Temporal nodes NEG : {temporal_nodes_neg}')
-                
-                # Update COO arrays
-                for node in temporal_nodes:    
-                    data = np.append(data, 1)
-                    rows = np.append(rows, node + prev_adj_offset)
-                    cols = np.append(cols, node + adj_offset)
-                for node_neg in temporal_nodes_neg:
-                    neg_data = np.append(neg_data, 1)
-                    neg_rows = np.append(neg_rows, node + prev_adj_offset)
-                    neg_cols = np.append(neg_cols, node + adj_offset)
+            # Fill COO adjacency matrix with time-indexed nodes
+            rows = np.append(rows, [time_idx_nodes[f'{src}_{t}'] for src in src_t])
+            cols = np.append(cols, [time_idx_nodes[f'{dest}_{t}'] for dest in dest_t])
 
-            prev_t_index = t_index
-            prev_adj_offset = adj_offset
+            # Fill COO adjacency matrix with temporal nodes (directed from past to current time)
+            if len(temporal_nodes) > 0:
+                rows = np.append(rows, [time_idx_nodes[f'{node}_{prev_t}'] for node in temporal_nodes])
+                cols = np.append(cols, [time_idx_nodes[f'{node}_{t}'] for node in temporal_nodes])
+
+
+            # -------- Negative edges ---------
+            # If only 2 nodes in graph at time t, we cannot create negative edges
+            pos_edge_list = [(u, v) for u, v in zip(src_t, dest_t)]
+
+            if len(curr_nodes) > 2:
+                len_src_t = len(src_t)
+
+                for src_node in src_t[:int(len_src_t/2)]:
+                    curr_nodes_list = list(curr_nodes)
+                    curr_nodes_list.remove(src_node) # Self edge is not allowed
+                    
+                    for i in range(3):
+                        neg_edge = (src_node, random.choice(curr_nodes_list)) 
+                        if neg_edge not in pos_edge_list:
+                            rows_neg = np.append(rows_neg, [time_idx_nodes[f'{src}_{t}'] for src in neg_edge])
+                            cols_neg = np.append(cols_neg, [time_idx_nodes[f'{dest}_{t}'] for dest in neg_edge[::-1]])
+                            break
+
+            # Fill COO adjacency matrix with temporal nodes (directed from past to current time)
+            if len(temporal_nodes) > 0:
+                rows_neg = np.append(rows_neg, [time_idx_nodes[f'{node}_{prev_t}'] for node in temporal_nodes])
+                cols_neg = np.append(cols_neg, [time_idx_nodes[f'{node}_{t}'] for node in temporal_nodes])
+
+            # Update previous time variables with current values
             prev_nodes = curr_nodes
-            prev_nodes_neg = curr_nodes_neg
+            prev_t = t
+        
+        # Create data arrays (no weights)
+        data = np.ones(len(rows), dtype=np.int16)
+        data_neg = np.ones(len(rows_neg), dtype=np.int16)
 
-        # Build new graphs from edges
-        # A self edge is added for the last node at last timestep, in order create same-size graphs between positive and negative samples
-        rows = np.append(rows, nb_nodes*len_t)
-        cols = np.append(cols, nb_nodes*len_t)
-        neg_rows = np.append(rows, nb_nodes*len_t)
-        neg_cols = np.append(cols, nb_nodes*len_t)
-        g_pdag = dgl.graph((rows, cols))
-        g_pdag_neg = dgl.graph((neg_rows, neg_cols))
+        # Build graphs from COO adjacency matrix
+        coo_m = coo_matrix((data, (rows, cols)))
+        #print(f'coo m :{coo_m.shape}')
+        g_pdag = dgl.from_scipy(coo_m)
+        coo_m_neg = coo_matrix((data_neg, (rows_neg, cols_neg)))
+        #print(f'coo m neg :{coo_m_neg.shape}')
+        g_pdag_neg = dgl.from_scipy(coo_m_neg)
 
-        if self.add_self_edges():
-            g_pdag = dgl.add_self_loops(g_pdag)
-            g_pdag_neg = dgl.add_self_loops(g_pdag_neg)
-
-        print('===========================')
-        print(f'Positive graph : {g_pdag}')
-        print(f'Negative graph : {g_pdag_neg}')
-        print('===========================')
+        print(f'    Ratio #negative edges / #positive edges : {len(rows_neg)/len(rows):.4f}')
 
         return g_pdag, g_pdag_neg
 
@@ -215,7 +217,7 @@ class StreamGraph():
             self.train_pos_g, self.train_neg_g = self.__add_temporal_edges_graph(self.train_pos_g, self.trange_train)
             self.train_g = self.train_pos_g
         #    self.val_pos_g = self.__add_temporal_edges_graph(self.val_pos_g, self.trange_val)
-            self.test_pos_g, self.test_neg_g = self.__add_temporal_edges_graph(self.test_pos_g, self.trange_test)
+        #    self.test_pos_g, self.test_neg_g = self.__add_temporal_edges_graph(self.test_pos_g, self.trange_test)
         #    self.test_pos_seen_g = self.__add_temporal_edges_graph(self.test_pos_seen_g, self.trange_test)
 
 
@@ -232,7 +234,7 @@ class StreamGraph():
                     * `time_tensor` : The adjacency matrix is considered using a **3D-tensor** with size :math:`(|V|, |V|, T)`, with
                             :math:`T` the lenght of time sequence. Adjacency matrix is not normalized. 
                     * `temporal_edges` : Adjacency matrix considering each node as a tuple :math:`(u, t)` where :math:`t` is the time
-                            at which node :math:`u` is present. The size of the final adjacency matrix is :math:`(|V|*|T|, |V|*|T|)`.
+                            at which node :math:`u` is present. 
                 add_self_edges: bool (default=True) 
                     If True, add self-edges for each node in graph. 
                     
@@ -247,18 +249,7 @@ class StreamGraph():
         if feat_struct=='temporal_edges':
 
             # Create graphs with temporal edges
-            if exists(f'{os.getcwd()}/data.bin'): 
-                glist = list(load_graphs(f"{os.getcwd()}/data.bin")[0])
-                self.train_g, self.train_pos_g, self.train_neg_g, _, _ = glist
-            else:
-                self.__add_temporal_edges()
-                # Save results
-                save_graphs("./data.bin", [self.train_g, self.train_pos_g, self.train_neg_g, self.test_pos_g, self.test_neg_g])
-
-            # Add self edges
-            if add_self_edges:
-                self.train_g = dgl.add_self_loop(self.train_g)
-                self.train_pos_g = dgl.add_self_loop(self.train_pos_g)
+            self.__add_temporal_edges()
 
             # Compute features as coo adjacency matrix 
             adj = self.train_pos_g.adj()
@@ -301,9 +292,6 @@ class StreamGraph():
         # Attach features to graph nodes
         self.train_g.ndata['feat'] = adj
         self.train_pos_g.ndata['feat'] = adj
-
-        print(self.train_pos_g)
-        print(self.test_pos_g)
 
         print('Done !')
 

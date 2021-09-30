@@ -42,51 +42,37 @@ def run(data, val_size, test_size, cache, batch_size, feat_struct, step_predicti
         
     # ------ Compute features ------
     # Features are computed accordingly to data structure and/or model.
-    print('Compute Features ...')
     start = time.time()
     sg.compute_features(feat_struct, add_self_edges=True, normalized=norm, device=device)
-    '''glist = list(load_graphs(f"{os.getcwd()}/data.bin")[0])
-    sg.train_g, sg.train_pos_g, sg.train_neg_g, _, _ = glist
-    
-    # Add self edges
-    sg.train_g = dgl.add_self_loop(sg.train_g)
-    sg.train_pos_g = dgl.add_self_loop(sg.train_pos_g)
-    #sg.train_neg_g = dgl.add_self_loop(sg.train_neg_g)
 
-    sg.train_g.ndata['feat'] = sg.train_pos_g.adj().to(torch.int16)
-    sg.train_pos_g.ndata['feat'] = sg.train_pos_g.adj().to(torch.int16)'''
-
-    print(f'Positive training graph : {sg.train_g}')
+    '''print(f'Positive training graph : {sg.train_g}')
     print(f'Positive training graph : {sg.train_pos_g}')
     print(f'Negative training graph : {sg.train_neg_g}')
-    print(f'Positive test graph : {sg.test_pos_g}')
-    print(f'Negative test graph : {sg.test_neg_g}')
+    print(f'Positive val graph : {sg.val_pos_g}')
+    print(f'Negative val graph : {sg.val_neg_g}')'''
     print('Done !')
 
     
     # Step link prediction ----------------
     # Link prediction on test set is evaluated only for the timestep coming right next to the training period.
-
     global min_test_t, min_val_t
-
     min_val_t = np.min(sg.trange_val+20)
     min_test_t = np.min(sg.trange_test+20)
+
     def edges_with_feature_t(edges):
         # Whether an edge has a timestamp equals to t
         return (edges.data['timestamp'] == min_val_t)#.squeeze(1)
-    print(f'Min val t : {min_val_t}')
-    print(f'Min test t : {min_test_t}')
+    #print(f'Min val t : {min_val_t}')
+    #print(f'Min test t : {min_test_t}')
     eids = sg.val_pos_g.filter_edges(edges_with_feature_t)
     eids_neg = sg.val_neg_g.filter_edges(edges_with_feature_t)
     sg.val_pos_g = dgl.edge_subgraph(sg.val_pos_g, eids, preserve_nodes=True)
     sg.val_neg_g = dgl.edge_subgraph(sg.val_neg_g, eids_neg, preserve_nodes=True)
-    print(f'Positive test graph : {sg.val_pos_g}')
-    print(f'Negative test graph : {sg.val_neg_g}')
-     
+    #print(f'Positive test graph : {sg.val_pos_g}')
+    #print(f'Negative test graph : {sg.val_neg_g}')
     print(f'Elapsed time : {end-start}s')
 
 
-    
     # ====== Graph Neural Networks ======
 
     # Graphs are converted to undirected before message passing algorithm
@@ -121,12 +107,16 @@ def run(data, val_size, test_size, cache, batch_size, feat_struct, step_predicti
 
     # Evaluation
     print('\n GCN Eval ...')
+    k_indexes = None
+    if feat_struct=='temporal_edges':
+        k_indexes = sg.last_k_emb_idx
     history_score, val_pos_score, val_neg_score = model.test(pred, 
                                                         sg.val_pos_g, 
                                                         sg.val_neg_g, 
                                                         metric=metric, 
                                                         feat_struct=feat_struct, 
                                                         step_prediction=step_prediction,
+                                                        k_indexes=k_indexes,
                                                         return_all=True)
     print(f'Done !')
     print_result(history_score, metric)
