@@ -51,10 +51,10 @@ class GCNModel(nn.Module):
         self.embedding_ = h
         self.history_train_ = history
 
-    def test(self, predictor, test_pos_g, test_neg_g, metric, feat_struct, step_prediction=None, return_all=True):
+    def test(self, predictor, test_pos_g, test_neg_g, metric, feat_struct, step_prediction=None, k_indexes=None, return_all=True):
 
         history = {} # useful for plots
-    
+
         with torch.no_grad():
 
             if feat_struct == 'temporal_edges':
@@ -62,12 +62,16 @@ class GCNModel(nn.Module):
                 if step_prediction == 'single':
                     k_embs = 1
                 elif step_prediction == 'multi':
-                    k_embs = 5
-                    
-                res_emb = torch.zeros(test_pos_g.number_of_nodes(), 20)
-                filt_emb = self.embedding_[-test_pos_g.number_of_nodes()*k_embs:, :]
+                    k_embs = 10
+                
+                # Embeddings for specific nodes and timesteps are retrieved using 'k_indexes' dictionary
+                # If a node has never been seen, its embedding vector is initialized as a 0 tensor
+                res_emb = torch.zeros(test_pos_g.number_of_nodes(), self.embedding_.shape[1])
                 for i in range(test_pos_g.number_of_nodes()):
-                    res_emb[i, :] = torch.mean(filt_emb[i::test_pos_g.number_of_nodes()], dim=0)
+                    if k_indexes.get(i) is not None:
+                        res_emb[i, :] = torch.mean(self.embedding_[k_indexes.get(i)[-min(k_embs, len(k_indexes.get(i))):], :], dim=0)
+                    else:
+                        res_emb[i, :] = torch.zeros(self.embedding_.shape[1])
                 self.embedding_ = res_emb
                 print(f'RES EMB  : {res_emb.size()}')
                 print(f'RES EMB : {res_emb}')
