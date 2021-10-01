@@ -4,6 +4,7 @@ import torch
 import os
 from scipy import sparse
 import scipy.sparse as sp
+from scipy.sparse import coo_matrix
 import dgl
 from dgl.data.utils import save_graphs
 import torch.nn.functional as F
@@ -111,19 +112,34 @@ def normalize_adj(A):
     
     return torch.from_numpy(A_norm)
 
-def compute_batch_feature(g, timerange, add_self_edge=True):
+'''def add_self_edges(self, g):
+    self.add_self_edges = True
+    self.g.add_edges(self.g.nodes(), self.g.nodes())
+    if self.is_splitted:
+        self.train_g.add_edges(self.train_g.nodes(), self.train_g.nodes())
+        self.train_pos_g.add_edges(self.train_pos_g.nodes(), self.train_pos_g.nodes())
+        self.val_pos_g.add_edges(self.val_pos_g.nodes(), self.val_pos_g.nodes())
+        self.test_pos_g.add_edges(self.test_pos_g.nodes(), self.test_pos_g.nodes())
+        self.test_pos_seen_g.add_edges(self.test_pos_seen_g.nodes(), self.test_pos_seen_g.nodes())
+    if self.neg_sampling:
+        self.train_neg_g.add_edges(self.train_neg_g.nodes(), self.train_neg_g.nodes())
+        self.val_neg_g.add_edges(self.val_neg_g.nodes(), self.val_neg_g.nodes())
+        self.test_neg_g.add_edges(self.test_neg_g.nodes(), self.test_neg_g.nodes())
+        self.test_neg_seen_g.add_edges(self.test_neg_seen_g.nodes(), self.test_neg_seen_g.nodes())
+    return g.add_edges(g.nodes(), g.nodes())'''
+    
+
+def compute_agg_features(g, timerange, add_self_edges=True):
     
     # Add edges between node and itself
-    if add_self_edge:
+    if add_self_edges:
         g.add_edges(g.nodes(), g.nodes())
     
     src, dest = g.edges()
-    adj = np.zeros((g.number_of_nodes(), g.number_of_nodes()))
-    for src_val, dest_val in zip(src, dest):
-        adj[src_val, dest_val] += 1
+    adj = coo_matrix((np.ones(len(src)), (src.numpy(), dest.numpy())))
     
     norm_mat = np.eye(adj.shape[0]) * (1 / len(timerange))
-    norm_adj = adj.dot(norm_mat)
+    norm_adj = torch.from_numpy(adj.dot(norm_mat))
     
     return norm_adj
 
@@ -148,6 +164,34 @@ def negative_sampling(g, timerange, list_pos_edges):
             break
 
     return list_neg_edges
+
+def temporal_sampler(g, batch_size, timestep):
+    ''' Returns a list of subgraph according to desired batch size. '''
+    
+    batches = []
+    indexes = [] # returns list of index with 1 if batch-graph was returned, else 0
+    
+    batch_period = timestep * batch_size
+    timerange = np.arange(int(g.edata['timestamp'].min()), int(g.edata['timestamp'].max()), batch_period)
+    eids = np.arange(g.number_of_edges())
+    
+    for period in timerange:
+    
+        # Edges to remove
+        rm_eids = eids[torch.logical_not(torch.logical_and(g.edata['timestamp'] >= period, 
+                                                           g.edata['timestamp'] < (period + batch_period)))]
+        
+        batch_g = dgl.remove_edges(g, rm_eids) # also remove the feature attached to the edge
+        
+        # Later, use indexes to consider graph batch only if edges exist inside
+        batches.append(batch_g)
+        
+        if batch_g.number_of_edges() != 0:
+            indexes.append(True)
+        else:
+            indexes.append(False)
+        
+    return batches, indexes   
 
 def plot_history_loss(history, ax, label=None):
     if label is not None:

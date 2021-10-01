@@ -19,19 +19,19 @@ class GCNModel(nn.Module):
         h = self.layer2(g, h)
         return h
 
-    def train(self, optimizer, train_g, train_pos_g, train_neg_g, predictor, loss, device, epochs):
+    def train(self, optimizer, predictor, loss, device, epochs, **kwargs):
         
         history = defaultdict(list) # Useful for plots
         
         for epoch in range(epochs):
             
             # To device
-            train_g = train_g.to(device)
+            #train_g = train_g.to(device)
             train_pos_g = train_pos_g.to(device)
             train_neg_g = train_neg_g.to(device)
 
             # forward
-            h = self.forward(train_g, train_g.ndata['feat'].to(torch.float32)).cpu()
+            h = self.forward(train_pos_g, train_pos_g.ndata['feat'].to(torch.float32)).cpu()
             pos_score = predictor(train_pos_g, h.to(device))
             neg_score = predictor(train_neg_g, h.to(device))
             loss_val = loss(pos_score, neg_score, device)
@@ -47,7 +47,6 @@ class GCNModel(nn.Module):
             if epoch%10==0:
                 print(f'In epoch {epoch}, loss: {loss_val:.5f}')
 
-        print(f'Embedding shape : {h.shape}')
         self.embedding_ = h
         self.history_train_ = history
 
@@ -73,8 +72,6 @@ class GCNModel(nn.Module):
                     else:
                         res_emb[i, :] = torch.zeros(self.embedding_.shape[1])
                 self.embedding_ = res_emb
-                print(f'RES EMB  : {res_emb.size()}')
-                print(f'RES EMB : {res_emb}')
 
             pos_score = predictor(test_pos_g, self.embedding_)
             neg_score = predictor(test_neg_g, self.embedding_)
@@ -123,17 +120,22 @@ class GCNNeighb(GCNModel):
         self.layer1 = GCNLayer(in_feats, h_feats)
         self.layer2 = GCNLayer(h_feats, h_feats)
 
-    def train(self, optimizer, pos_batches, neg_batches, emb_size, predictor, loss, device, epochs):
+    def train(self, optimizer, predictor, loss, device, epochs, **kwargs):
+
+        # Arguments
+        train_pos_batches = kwargs['train_pos_batches']
+        train_neg_batches = kwargs['train_neg_batches']
+        emb_size = kwargs['emb_size']   
         
         history = defaultdict(list)
 
         # Initialize embedding for 1st timestep
-        emb_prev = torch.rand(pos_batches[0].ndata['feat'].shape[0], emb_size, requires_grad=False)
+        emb_prev = torch.rand(train_pos_batches[0].ndata['feat'].shape[0], emb_size, requires_grad=False)
 
         for epoch in range(epochs):
 
             # Training for each timestep (20 seconds)
-            for idx, (batch_pos_g, batch_neg_g) in enumerate(zip(pos_batches, neg_batches)):
+            for idx, (batch_pos_g, batch_neg_g) in enumerate(zip(train_pos_batches, train_neg_batches)):
                 
                 # Current active nodes
                 curr_nodes = torch.nonzero(batch_pos_g.ndata['feat']).squeeze().unique()
@@ -156,7 +158,8 @@ class GCNNeighb(GCNModel):
 
                 # Save results
                 history['train_loss'].append(loss_val.cpu().detach().numpy())
-                history['train_emb'].append(emb_N.cpu().detach().numpy())
+                if epoch == (epochs - 1):
+                    history['train_emb'].append(emb_N.cpu().detach().numpy())
 
                 # Backward
                 optimizer.zero_grad() # zero the parameter gradients
@@ -173,14 +176,19 @@ class GCNNonNeighb(GCNModel):
         self.layer1 = GCNLayerNonNeighb(in_feats, h_feats)
         self.layer2 = GCNLayerNonNeighb(h_feats, h_feats)
 
-    def train(self, optimizer, pos_batches, neg_batches, emb_size, predictor, loss, device, epochs):
+    def train(self, optimizer, predictor, loss, device, epochs, **kwargs):
+        
+        # Arguments
+        train_pos_batches = kwargs['train_pos_batches']
+        train_neg_batches = kwargs['train_neg_batches']
+        emb_size = kwargs['emb_size']
         
         history = defaultdict(list)
 
         for epoch in range(epochs):
     
             # Training for each timestep (20 seconds)
-            for idx, (batch_pos_g, batch_neg_g) in enumerate(zip(pos_batches, neg_batches)):
+            for idx, (batch_pos_g, batch_neg_g) in enumerate(zip(train_pos_batches, train_neg_batches)):
                 
                 # To device
                 batch_pos_g = batch_pos_g.to(device)
@@ -195,7 +203,8 @@ class GCNNonNeighb(GCNModel):
                         
                 # Save results
                 history['train_loss'].append(loss_val.cpu().detach().numpy())
-                history['train_emb'].append(emb_NN.cpu().detach().numpy())
+                if epoch == (epochs - 1):
+                    history['train_emb'].append(emb_NN.cpu().detach().numpy())
                 
                 # Backward
                 optimizer.zero_grad() # zero the parameter gradients
@@ -212,9 +221,18 @@ class GCNModelFull(GCNModel):
         self.layer1 = GCNLayerFull(h_feats, h_feats)
         self.layer2 = GCNLayerFull(h_feats, h_feats)
 
-    def train(self, optimizer, pos_batches, neg_batches, emb_size, predictor, loss, device, epochs, \
-                emb_prev, emb_neighbors, emb_nneighbors, \
-                alpha=0.5, beta=0.25, gamma=0.25):
+    def train(self, optimizer, predictor, loss, device, epochs, **kwargs):
+        
+        # Arguments
+        train_pos_batches = kwargs['train_pos_batches']
+        train_neg_batches = kwargs['train_neg_batches']
+        emb_size = kwargs['emb_size']
+        emb_prev = kwargs['emb_prev']
+        emb_neighbors = kwargs['emb_neighbors']
+        emb_nneighbors = kwargs['emb_nneighbors']
+        alpha = kwargs['alpha']
+        beta = kwargs['beta']
+        gamma = kwargs['gamma']
         
         history = defaultdict(list)
         #history_emb_tot = []
@@ -222,7 +240,7 @@ class GCNModelFull(GCNModel):
         for epoch in range(epochs):
     
             # Training for each timestep (20 seconds)
-            for idx, (batch_pos_g, batch_neg_g) in enumerate(zip(pos_batches, neg_batches)):
+            for idx, (batch_pos_g, batch_neg_g) in enumerate(zip(train_pos_batches, train_neg_batches)):
 
                 # Saved embeddings
                 h_Neighb = torch.from_numpy(emb_neighbors[idx]).requires_grad_(False)

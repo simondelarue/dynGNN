@@ -34,6 +34,7 @@ class StreamGraph():
         self.add_temporal_edges = False
         self.neg_sampling = False
         self.is_splitted = False
+        self.batches = False
         
         #data_df = self.__load_preprocessed_data(self.name)
         print('Creating stream graph ...')
@@ -62,20 +63,6 @@ class StreamGraph():
             self.test_neg_g = dgl.add_reverse_edges(self.test_neg_g, copy_ndata=copy_ndata, copy_edata=copy_edata)
             self.test_neg_seen_g = dgl.add_reverse_edges(self.test_neg_seen_g, copy_ndata=copy_ndata, copy_edata=copy_edata)
 
-    def __add_self_edges(self):
-        self.add_self_edges = True
-        self.g.add_edges(self.g.nodes(), self.g.nodes())
-        if self.is_splitted:
-            self.train_g.add_edges(self.train_g.nodes(), self.train_g.nodes())
-            self.train_pos_g.add_edges(self.train_pos_g.nodes(), self.train_pos_g.nodes())
-            self.val_pos_g.add_edges(self.val_pos_g.nodes(), self.val_pos_g.nodes())
-            self.test_pos_g.add_edges(self.test_pos_g.nodes(), self.test_pos_g.nodes())
-            self.test_pos_seen_g.add_edges(self.test_pos_seen_g.nodes(), self.test_pos_seen_g.nodes())
-        if self.neg_sampling:
-            self.train_neg_g.add_edges(self.train_neg_g.nodes(), self.train_neg_g.nodes())
-            self.val_neg_g.add_edges(self.val_neg_g.nodes(), self.val_neg_g.nodes())
-            self.test_neg_g.add_edges(self.test_neg_g.nodes(), self.test_neg_g.nodes())
-            self.test_neg_seen_g.add_edges(self.test_neg_seen_g.nodes(), self.test_neg_seen_g.nodes())
 
     def _reindex_nodes_time(self):
         res = {}
@@ -89,6 +76,7 @@ class StreamGraph():
                 val += 1
         return res
        
+
     def _func_update(self, src_node, curr_nodes_list, pos_edge_list, time_idx_nodes, t):
 
         rows = np.array([], dtype=np.int16)
@@ -275,23 +263,61 @@ class StreamGraph():
 
         elif feat_struct=='agg':
 
-            # Add self-edges over time
-            if add_self_edges:
-                self.__add_self_edges()
+            if self.batches:
 
-            # Build averaged adjacency matrix over time
-            src, dest = self.train_pos_g.edges()
-            adj = coo_matrix((np.ones(len(src)), (src.numpy(), dest.numpy())))
+                # Positive batches
+                for train_batch_g in self.train_pos_batches:
+                    train_batch_timerange = np.arange(int(train_batch_g.edata['timestamp'].min()), int(train_batch_g.edata['timestamp'].max()) + 20, 20)
+                    # Compute features 
+                    if train_batch_timerange[0] != 0:
+                        train_batch_feat = compute_agg_features(train_batch_g, train_batch_timerange, add_self_edges=add_self_edges) 
+                        if normalized:
+                            train_batch_g.ndata['feat'] = normalize_adj(train_batch_feat)
+                        else:
+                            train_batch_g.ndata['feat'] = train_batch_feat
+                # Negative batches
+                for train_neg_batch_g in self.train_neg_batches:
+                    train_batch_timerange = np.arange(int(train_neg_batch_g.edata['timestamp'].min()), int(train_neg_batch_g.edata['timestamp'].max()) + 20, 20)
+                    # Compute features 
+                    if train_batch_timerange[0] != 0:
+                        train_neg_batch_feat = compute_agg_features(train_batch_g, train_batch_timerange, add_self_edges=add_self_edges) 
+                        if normalized:
+                            train_neg_batch_g.ndata['feat'] = normalize_adj(train_neg_batch_feat)
+                        else:
+                            train_neg_batch_g.ndata['feat'] = train_neg_batch_feat
             
-            norm_mat = np.eye(adj.shape[0]) * (1 / len(self.trange_train))
-            adj = torch.from_numpy(adj.dot(norm_mat))
-
-            if normalized:
-                adj = normalize_adj(adj)
+            else:
+                adj = compute_agg_features(self.train_pos_g, self.trange_train, add_self_edges=add_self_edges)
+            
+                # Normalize adjacency
+                if normalized:
+                    adj = normalize_adj(adj)
 
         # Attach features to graph nodes
-        self.train_g.ndata['feat'] = adj
-        self.train_pos_g.ndata['feat'] = adj
+        if not self.batches:
+            self.train_g.ndata['feat'] = adj
+            self.train_pos_g.ndata['feat'] = adj
+
+        print('Done !')
+
+
+    def create_batches(self, batch_size, timestep=20):
+
+        print('\nCreating batches ...')
+        self.batches = True
+
+        # Build graph batches
+        train_pos_batches, indexes_pos = temporal_sampler(self.train_pos_g, batch_size, timestep)
+        train_neg_batches, _ = temporal_sampler(self.train_neg_g, batch_size, timestep)
+
+        # Filter graphs only for the period where a positive graph is computed
+        # Note : it is not possible to create Numpy arrays of DGL Graphs
+        self.train_pos_batches = []
+        self.train_neg_batches = []
+        for g_pos, g_neg, mask in zip(train_pos_batches, train_neg_batches, indexes_pos):
+            if mask:
+                self.train_pos_batches.append(g_pos)
+                self.train_neg_batches.append(g_neg)
 
         print('Done !')
 

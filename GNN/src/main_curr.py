@@ -38,20 +38,14 @@ def run(data, val_size, test_size, cache, batch_size, feat_struct, step_predicti
 
     # ------ Create batches ------
     if batch_size != 0:
-        print('TODO')
+        sg.create_batches(batch_size)
         
     # ------ Compute features ------
     # Features are computed accordingly to data structure and/or model.
     start = time.time()
     sg.compute_features(feat_struct, add_self_edges=True, normalized=norm, device=device)
-
-    '''print(f'Positive training graph : {sg.train_g}')
-    print(f'Positive training graph : {sg.train_pos_g}')
-    print(f'Negative training graph : {sg.train_neg_g}')
-    print(f'Positive val graph : {sg.val_pos_g}')
-    print(f'Negative val graph : {sg.val_neg_g}')'''
-    print('Done !')
-
+    end = time.time()
+    print(f'Elapsed time : {end-start}s')
     
     # Step link prediction ----------------
     # Link prediction on test set is evaluated only for the timestep coming right next to the training period.
@@ -70,7 +64,7 @@ def run(data, val_size, test_size, cache, batch_size, feat_struct, step_predicti
     sg.val_neg_g = dgl.edge_subgraph(sg.val_neg_g, eids_neg, preserve_nodes=True)
     #print(f'Positive test graph : {sg.val_pos_g}')
     #print(f'Negative test graph : {sg.val_neg_g}')
-    print(f'Elapsed time : {end-start}s')
+    
 
 
     # ====== Graph Neural Networks ======
@@ -79,53 +73,134 @@ def run(data, val_size, test_size, cache, batch_size, feat_struct, step_predicti
     if feat_struct != 'temporal_edges':
         sg.directed2undirected(copy_ndata=True, copy_edata=True)
 
+    
     # Initialize model
     if model_name == 'GCNTime':
         model = GCNModelTime(sg.train_g.ndata['feat'].shape[0], emb_size, sg.train_g.ndata['feat'].shape[2]).to(device)
+        models = [model]
     elif model_name == 'GraphConv':
         model = GCNGraphConv(sg.train_g.ndata['feat'].shape[0], emb_size).to(device)
+        models = [model]
     elif model_name == 'GraphSage':
         model = GraphSAGE(sg.train_g.ndata['feat'].shape[0], emb_size).to(device)
+        models = [model]
+    elif model_name == 'GCN_lc':
+        model_N = GCNNeighb(sg.train_pos_batches[0].ndata['feat'].shape[0], emb_size).to(device)
+        model_NN = GCNNonNeighb(sg.train_pos_batches[0].ndata['feat'].shape[0], emb_size).to(device)
+        model_full = GCNModelFull(sg.train_pos_batches[0].ndata['feat'].shape[0], emb_size).to(device)
+        models = [model_N, model_NN, model_full]
+
+    # Predictor
     pred = DotPredictor()
 
-    # Optimizer
-    optimizer = torch.optim.Adam(itertools.chain(model.parameters()), lr=LR)
+    # Train model
+    kwargs = {'train_pos_g': sg.train_pos_g, 'train_neg_g': sg.train_neg_g}
 
-    # Training
-    start = time.time()
-    print('GCN training ...')
-    model.train(optimizer=optimizer,
-                train_g=sg.train_g,
-                train_pos_g=sg.train_pos_g,
-                train_neg_g=sg.train_neg_g,
-                predictor=pred,
-                loss=compute_loss,
-                device=device,
-                epochs=epochs)
-    end = time.time()
-    print(f'Elapsed time : {end-start}s')
+    for i, model in enumerate(models):
+        
+        if model_name != 'GCN_lc':
+            # Optimizer
+            optimizer = torch.optim.Adam(itertools.chain(model.parameters()), lr=LR)
 
+            # Training
+            start = time.time()
+            print('GCN training ...')
+            model.train(optimizer=optimizer,
+                        predictor=pred,
+                        loss=compute_loss,
+                        device=device,
+                        epochs=epochs,
+                        **kwargs)
+            end = time.time()
+            print(f'Elapsed time : {end-start}s')
+
+        elif i in [0, 1] and model_name == 'GCN_lc':
+            kwargs = {'train_pos_batches': sg.train_pos_batches,
+                      'train_neg_batches': sg.train_neg_batches,
+                      'emb_size': emb_size}
+            # Optimizer
+            optimizer = torch.optim.Adam(itertools.chain(model.parameters()), lr=LR)
+
+            # Training
+            start = time.time()
+            print('GCN training ...')
+            model.train(optimizer=optimizer,
+                        predictor=pred,
+                        loss=compute_loss,
+                        device=device,
+                        epochs=epochs,
+                        **kwargs)
+            end = time.time()
+            print(f'Elapsed time : {end-start}s')
+
+        elif i==2:
+            alphas = np.arange(0, 1.25, 0.25)
+            betas = np.arange(0, 1.25, 0.25)
+            gammas = np.arange(0, 1.25, 0.25)
+            triplets = find_triplets(alphas, 1)
+            trained_models = []
+
+            kwargs = {'train_pos_batches': sg.train_pos_batches,
+                      'train_neg_batches': sg.train_neg_batches,
+                        'emb_size': emb_size, 
+                        'emb_prev': torch.rand(sg.train_pos_batches[0].ndata['feat'].shape[0], emb_size, requires_grad=False), 
+                        'emb_neighbors': models[0].history_train_['train_emb'].copy(), 
+                        'emb_nneighbors': models[1].history_train_['train_emb'].copy()}
+            
+            for num_triplet, triplet in enumerate(triplets):
+                kwargs['alpha'], kwargs['beta'], kwargs['gamma'] = triplet
+
+                # Optimizer
+                optimizer = torch.optim.Adam(itertools.chain(model.parameters()), lr=LR)
+
+                # Training
+                start = time.time()
+                print(f'GCN training (linear combination parameters : {triplet}) ...')
+                model.train(optimizer=optimizer,
+                            predictor=pred,
+                            loss=compute_loss,
+                            device=device,
+                            epochs=epochs,
+                            **kwargs)
+                end = time.time()
+                trained_models.append(model)
+                print(f'Elapsed time : {end-start}s')
+                
+        
     # Evaluation
     print('\n GCN Eval ...')
-    k_indexes = None
-    if feat_struct=='temporal_edges':
-        k_indexes = sg.last_k_emb_idx
-    history_score, val_pos_score, val_neg_score = model.test(pred, 
-                                                        sg.val_pos_g, 
-                                                        sg.val_neg_g, 
-                                                        metric=metric, 
-                                                        feat_struct=feat_struct, 
-                                                        step_prediction=step_prediction,
-                                                        k_indexes=k_indexes,
-                                                        return_all=True)
-    print(f'Done !')
-    print_result(history_score, metric)
-    # Plot Results
-    hist_train_loss = [float(x) for x in model.history_train_['train_loss']]
     fig, ax = plt.subplots(1, 2, figsize=(12, 7))
-    plot_history_loss(hist_train_loss, ax=ax[0], label=f'{model_name}')
-    ax[0].set_xlabel('epochs')
-    plot_result(history_score, ax=ax[1], title='Eval set - unseen nodes', label=f'{model_name}', metric=metric)
+
+    if model_name == 'GCN_lc':
+        models = trained_models
+
+    for idx, trained_model in enumerate(models):
+        
+        k_indexes = None
+        if feat_struct=='temporal_edges':
+            k_indexes = sg.last_k_emb_idx
+
+        history_score, val_pos_score, val_neg_score = trained_model.test(pred, 
+                                                            sg.val_pos_g, 
+                                                            sg.val_neg_g, 
+                                                            metric=metric, 
+                                                            feat_struct=feat_struct, 
+                                                            step_prediction=step_prediction,
+                                                            k_indexes=k_indexes,
+                                                            return_all=True)
+        print(f'Done !')
+        print_result(history_score, metric)
+
+        # Plot Results
+        hist_train_loss = [float(x) for x in trained_model.history_train_['train_loss']]
+        if len(models) > 1:
+            label = f'{triplets[idx]}'
+        else:
+            label = f'{model_name}'
+
+        plot_history_loss(hist_train_loss, ax=ax[0], label=label)
+        ax[0].set_xlabel('epochs')       
+        plot_result(history_score, ax=ax[1], title='Eval set - unseen nodes', label=label, metric=metric)
 
     # Save results
     res_path = f'{result_path}/{data}/{feat_struct}'
@@ -172,7 +247,6 @@ if __name__=='__main__':
     parser = argparse.ArgumentParser('Preprocessing data')
     parser.add_argument('--data', type=str, help='Dataset name : \{SF2H\}', default='SF2H')
     parser.add_argument('--cache', type=str, help='Path for splitted graphs already cached', default=None)
-    #parser.add_argument('--batches', type=str, help='1 if cached batches are available, else 0', default='0')
     parser.add_argument('--feat_struct', type=str, help='Data structure : \{agg, time_tensor, temporal_edges\}', default='time_tensor')
     parser.add_argument('--step_prediction', type=str, help="If data structure is 'temporal_edges', either 'single' or 'multi' step predictions can be used.", default=None)
     parser.add_argument('--normalized', type=bool, help='If true, normalized adjacency is used', default=True)
