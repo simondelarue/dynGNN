@@ -65,6 +65,11 @@ class StreamGraph():
 
 
     def _reindex_nodes_time(self):
+        ''' Creates a dictionary with reindexed nodes from 0 to :math:`|V|-1`, using the orginial DataFrame. 
+            Output
+            -------
+                res : dict '''
+
         res = {}
         val = 0
         for i, j, t in zip(self.data_df['src'], self.data_df['dest'], self.data_df['t']):
@@ -75,27 +80,23 @@ class StreamGraph():
                 res[f'{j}_{t}'] = val
                 val += 1
         return res
-       
-
-    def _func_update(self, src_node, curr_nodes_list, pos_edge_list, time_idx_nodes, t):
-
-        rows = np.array([], dtype=np.int16)
-        cols = np.array([], dtype=np.int16)
-        data = np.array([], dtype=np.int16)
-
-        curr_nodes_list.remove(src_node) # Self edge is not allowed
-        for i in range(3):
-            neg_edge = (src_node, random.choice(curr_nodes_list)) 
-            if neg_edge not in pos_edge_list:
-                rows = np.append(rows, [time_idx_nodes[f'{src}_{t}'] for src in neg_edge])
-                cols = np.append(cols, [time_idx_nodes[f'{dest}_{t}'] for dest in neg_edge[::-1]])
-                data = np.append(data, [1]*len(rows))
-                break
-
-        return rows, cols, data
 
 
     def __add_temporal_edges_graph(self, g, timerange):
+        ''' Given a `dgl` graph, builds a postive and negative `PDAG` by adding temporal edges. Temporal edge :math:`E(u_t, u_{t+\delta})` is
+            a directed link between node :math:`u` at time :math:`t`, and node :math:`u` at time :math:`t+\delta`, with :math:`\delta` the number
+            of minimal timestep interval between two consecutives events in the dataset.
+
+            Parameters
+            -----------
+                g : `dgl` graph
+                timerange : np.ndarray
+                    Array of all possible timesteps covered by graph g.
+
+            Output
+            -------
+                g_pdag, g_pdag_neg : `dgl` graphs
+                    Graphs with respectively positive and negative edges, as well as temporal edges, for the whole timerange period. '''
 
         # Dictionary with |V| keys, and last k time indexes at which node was seen.
         # This dictionary is useful to gather embeddings of all nodes at last k timesteps.
@@ -195,7 +196,7 @@ class StreamGraph():
 
 
     def __add_temporal_edges(self):
-        ''' If :math:`u(t)` and :math:`u(t+1)` both exist, adds a directed link between :math:`u(t)` and :math:`u(t+1)`. ''' 
+        ''' If :math:`u(t)` and :math:`u(t+\delta)` both exist, adds a directed link between :math:`u(t)` and :math:`u(t+\delta)`. ''' 
 
         self.add_temporal_edges = True
 
@@ -209,7 +210,7 @@ class StreamGraph():
         #    self.test_pos_seen_g = self.__add_temporal_edges_graph(self.test_pos_seen_g, self.trange_test)
 
 
-    def compute_features(self, feat_struct: str, add_self_edges=True, normalized=True, device='cpu'):
+    def compute_features(self, feat_struct: str, add_self_edges=True, normalized=True):
         ''' Attach features to existing graph(s). Features are computed from adjacency matrix of the graph.
         
             Parameters
@@ -225,10 +226,8 @@ class StreamGraph():
                             at which node :math:`u` is present. 
                 add_self_edges: bool (default=True) 
                     If True, add self-edges for each node in graph. 
-                    
-            Output
-            -------
-                Adjacency matrix as a torch tensor. '''
+                normalized : bool (default=True)
+                    If True, normalize adjacency matrix such as :math:`\tild{A}=D^{-1}AD^{-1}` with :math:`D` the matrix of degrees. '''
                             
         print('\nCompute features ...')
         print(f'    Data structure : {feat_struct}')
@@ -302,6 +301,13 @@ class StreamGraph():
 
 
     def create_batches(self, batch_size, timestep=20):
+        ''' Creates lists of batches containing positive and negative edges for training graph. Each batch contains `batch_size` number
+            of timesteps. 
+            
+            Parameters
+            -----------
+                batch_size : int
+                    Number of timesteps in each batch. '''
 
         print('\nCreating batches ...')
         self.batches = True

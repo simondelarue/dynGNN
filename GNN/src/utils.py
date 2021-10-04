@@ -79,7 +79,7 @@ def sample_non_neighbors(g, node, all_nodes):
     # Neighbors nodes
     src_nodes = dgl.in_subgraph(g, int(node)).edges()[0]
     # Non neighbors nodes
-    non_neighb_nodes = np.array(list(all_nodes - set(src_nodes.numpy())))
+    non_neighb_nodes = np.array(list(all_nodes - set(src_nodes.cpu().numpy())))
     
     return torch.from_numpy(non_neighb_nodes)
 

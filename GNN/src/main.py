@@ -43,7 +43,7 @@ def run(data, val_size, test_size, cache, batch_size, feat_struct, step_predicti
     # ------ Compute features ------
     # Features are computed accordingly to data structure and/or model.
     start = time.time()
-    sg.compute_features(feat_struct, add_self_edges=True, normalized=norm, device=device)
+    sg.compute_features(feat_struct, add_self_edges=True, normalized=norm)
     end = time.time()
     print(f'Elapsed time : {end-start}s')
     
@@ -104,7 +104,7 @@ def run(data, val_size, test_size, cache, batch_size, feat_struct, step_predicti
 
             # Training
             start = time.time()
-            print('GCN training ...')
+            print('\nGCN training ...')
             model.train(optimizer=optimizer,
                         predictor=pred,
                         loss=compute_loss,
@@ -123,7 +123,7 @@ def run(data, val_size, test_size, cache, batch_size, feat_struct, step_predicti
 
             # Training
             start = time.time()
-            print('GCN training ...')
+            print('\nGCN training ...')
             model.train(optimizer=optimizer,
                         predictor=pred,
                         loss=compute_loss,
@@ -150,25 +150,27 @@ def run(data, val_size, test_size, cache, batch_size, feat_struct, step_predicti
             for num_triplet, triplet in enumerate(triplets):
                 kwargs['alpha'], kwargs['beta'], kwargs['gamma'] = triplet
 
+                # Model
+                model_full = GCNModelFull(sg.train_pos_batches[0].ndata['feat'].shape[0], emb_size).to(device)
                 # Optimizer
-                optimizer = torch.optim.Adam(itertools.chain(model.parameters()), lr=LR)
+                optimizer = torch.optim.Adam(itertools.chain(model_full.parameters()), lr=LR)
 
                 # Training
                 start = time.time()
-                print(f'GCN training (linear combination parameters : {triplet}) ...')
-                model.train(optimizer=optimizer,
+                print(f'\nGCN training (linear combination parameters : {triplet}) ...')
+                model_full.train(optimizer=optimizer,
                             predictor=pred,
                             loss=compute_loss,
                             device=device,
                             epochs=epochs,
                             **kwargs)
                 end = time.time()
-                trained_models.append(model)
+                trained_models.append(model_full)
                 print(f'Elapsed time : {end-start}s')
                 
         
     # Evaluation
-    print('\n GCN Eval ...')
+    print('\nGCN Eval ...')
     fig, ax = plt.subplots(1, 2, figsize=(12, 7))
 
     if model_name == 'GCN_lc':

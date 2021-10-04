@@ -44,14 +44,14 @@ class GCNLayerNonNeighb(GCNLayer):
         curr_nodes = torch.nonzero(g.ndata['feat']).squeeze().unique()
         
         # All nodes set 
-        all_nodes_set = set(g.nodes().numpy())
+        all_nodes_set = set(g.nodes().cpu().detach().numpy())
         
         # Initialize Non-neighbors embedding Tensor
         h_NN = features.clone()
 
         # Update embedding (for active nodes at timestep only) using non-neighbors features
         for node in curr_nodes:
-            non_neighbors_nodes = sample_non_neighbors(g, node, all_nodes_set)
+            non_neighbors_nodes = sample_non_neighbors(g, node.cpu(), all_nodes_set)
             h_NN_tmp = torch.sum(features[non_neighbors_nodes], dim=0)
             h_NN[node] = features[node] + h_NN_tmp
         

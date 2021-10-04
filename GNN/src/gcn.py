@@ -22,6 +22,10 @@ class GCNModel(nn.Module):
     def train(self, optimizer, predictor, loss, device, epochs, **kwargs):
         
         history = defaultdict(list) # Useful for plots
+
+        # Arguments
+        train_pos_g = kwargs['train_pos_g']
+        train_neg_g = kwargs['train_neg_g']
         
         for epoch in range(epochs):
             
@@ -72,6 +76,7 @@ class GCNModel(nn.Module):
                     else:
                         res_emb[i, :] = torch.zeros(self.embedding_.shape[1])
                 self.embedding_ = res_emb
+
 
             pos_score = predictor(test_pos_g, self.embedding_)
             neg_score = predictor(test_neg_g, self.embedding_)
@@ -276,6 +281,7 @@ class GCNModelFull(GCNModel):
                 #history_emb_tot.append(emb_prev)
         
         self.embedding_ = emb_tot
+        print('model full embedding ', self.embedding_)
         self.history_train_ = history
         #self.history_emb_ = history_emb_tot
         self.history_emb_ = emb_prev
