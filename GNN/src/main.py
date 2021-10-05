@@ -62,8 +62,8 @@ def run(data, val_size, test_size, cache, batch_size, feat_struct, step_predicti
     eids_neg = sg.val_neg_g.filter_edges(edges_with_feature_t)
     sg.val_pos_g = dgl.edge_subgraph(sg.val_pos_g, eids, preserve_nodes=True)
     sg.val_neg_g = dgl.edge_subgraph(sg.val_neg_g, eids_neg, preserve_nodes=True)
-    #print(f'Positive test graph : {sg.val_pos_g}')
-    #print(f'Negative test graph : {sg.val_neg_g}')
+    print(f'Positive test graph : {sg.val_pos_g}')
+    print(f'Negative test graph : {sg.val_neg_g}')
     
 
 
@@ -182,6 +182,8 @@ def run(data, val_size, test_size, cache, batch_size, feat_struct, step_predicti
         if feat_struct=='temporal_edges':
             k_indexes = sg.last_k_emb_idx
 
+        print(sg.val_pos_g)
+        print(sg.val_pos_g.edges())
         history_score, val_pos_score, val_neg_score = trained_model.test(pred, 
                                                             sg.val_pos_g, 
                                                             sg.val_neg_g, 
@@ -207,9 +209,9 @@ def run(data, val_size, test_size, cache, batch_size, feat_struct, step_predicti
     # Save results
     res_path = f'{result_path}/{data}/{feat_struct}'
     if feat_struct == 'temporal_edges':
-        res_filename = f'{data}_GCN_{model_name}_{feat_struct}_unseen_eval_{metric}_{step_prediction}.png'
+        res_filename = f'{data}_GCN_{model_name}_{feat_struct}_unseen_eval_{metric}_{step_prediction}'
     else:
-        res_filename = f'{data}_GCN_{model_name}_{feat_struct}_unseen_eval_{metric}.png'
+        res_filename = f'{data}_GCN_{model_name}_{feat_struct}_unseen_eval_{metric}'
 
     save_figures(fig, res_path, res_filename)
     
@@ -239,12 +241,15 @@ def run(data, val_size, test_size, cache, batch_size, feat_struct, step_predicti
 
 # TODO
 
+# - Ajout du jeu de données AS
+# - Moyenne des AUC sur la totalité des timesteps de test
 # - Tâche de ML sous-jacente : Classification
 
 if __name__=='__main__':
 
     LOG_PATH = f'{os.getcwd()}/logs'
-    RESULT_PATH = f'{os.getcwd()}/results'
+    #RESULT_PATH = f'{os.getcwd()}/results'
+    RESULT_PATH = '/home/infres/sdelarue/node-embedding/GNN/results'
 
     parser = argparse.ArgumentParser('Preprocessing data')
     parser.add_argument('--data', type=str, help='Dataset name : \{SF2H\}', default='SF2H')

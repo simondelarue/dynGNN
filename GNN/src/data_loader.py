@@ -25,13 +25,27 @@ class DataLoader():
 
 
     def __load(self) -> pd.DataFrame:
+        ''' Load data from source file. 
+            Output
+            -------
+                DataFrame '''
+
         if self.name == 'SF2H':
             return pd.read_csv(f'{self.IN_PATH}/tij_SFHH.dat_', header=None, names=['t', 'i', 'j'], delimiter=' ')
         elif self.name == 'HighSchool':
             return pd.read_csv(f'{self.IN_PATH}/High-School_data_2013.csv', header=None, names=['t', 'i', 'j', 'Ci', 'Cj'], delimiter=' ')
+        elif self.name == 'AS':
+            print(f'{self.IN_PATH}/as-733/as_100.pkl')
+            return pd.read_pickle(f'{self.IN_PATH}/as-733/as_100.pkl')
 
 
     def __save(self, out_name: str):
+        ''' Save data in `pickle` format.
+            Parameters
+            -----------
+                out_name : str
+                    Label of dataset '''
+
         self.data_df.to_pickle(f'{self.OUT_PATH}/{out_name}.pkl', protocol=3)
 
 
@@ -49,9 +63,9 @@ class DataLoader():
 
         print('Preprocessing data ...')
 
-        if self.name in ['SF2H', 'HighSchool']:
+        if self.name in ['SF2H', 'HighSchool', 'AS']:
 
-            # Reindex node labels and time indexes
+            # Reindex node labels 
             df_preproc = data_df.copy()
             unique_nodes = set(df_preproc['i'].values) | set(df_preproc['j'].values)
 
