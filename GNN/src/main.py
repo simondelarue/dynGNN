@@ -2,6 +2,7 @@
 
 import argparse
 import numpy as np
+import pandas as pd
 import os
 import time
 import itertools
@@ -49,21 +50,22 @@ def run(data, val_size, test_size, cache, batch_size, feat_struct, step_predicti
     
     # Step link prediction ----------------
     # Link prediction on test set is evaluated only for the timestep coming right next to the training period.
-    global min_test_t, min_val_t
-    min_val_t = np.min(sg.trange_val+20)
-    min_test_t = np.min(sg.trange_test+20)
+    val_pos_g_list = []
+    val_neg_g_list = []
+    for t in sg.trange_val:
+        global val_t
+        val_t = t
 
-    def edges_with_feature_t(edges):
-        # Whether an edge has a timestamp equals to t
-        return (edges.data['timestamp'] == min_val_t)#.squeeze(1)
-    #print(f'Min val t : {min_val_t}')
-    #print(f'Min test t : {min_test_t}')
-    eids = sg.val_pos_g.filter_edges(edges_with_feature_t)
-    eids_neg = sg.val_neg_g.filter_edges(edges_with_feature_t)
-    sg.val_pos_g = dgl.edge_subgraph(sg.val_pos_g, eids, preserve_nodes=True)
-    sg.val_neg_g = dgl.edge_subgraph(sg.val_neg_g, eids_neg, preserve_nodes=True)
-    print(f'Positive test graph : {sg.val_pos_g}')
-    print(f'Negative test graph : {sg.val_neg_g}')
+        def edges_with_feature_t(edges):
+            # Whether an edge has a timestamp equals to t
+            return (edges.data['timestamp'] == val_t)
+
+        eids = sg.val_pos_g.filter_edges(edges_with_feature_t)
+        eids_neg = sg.val_neg_g.filter_edges(edges_with_feature_t)
+        val_pos_g = dgl.edge_subgraph(sg.val_pos_g, eids, preserve_nodes=True)
+        val_neg_g = dgl.edge_subgraph(sg.val_neg_g, eids_neg, preserve_nodes=True)
+        val_pos_g_list.append(val_pos_g)
+        val_neg_g_list.append(val_neg_g)
     
 
 
@@ -105,6 +107,7 @@ def run(data, val_size, test_size, cache, batch_size, feat_struct, step_predicti
             # Training
             start = time.time()
             print('\nGCN training ...')
+            print(f'Training timerange length : {len(sg.trange_train)}')
             model.train(optimizer=optimizer,
                         predictor=pred,
                         loss=compute_loss,
@@ -171,7 +174,9 @@ def run(data, val_size, test_size, cache, batch_size, feat_struct, step_predicti
         
     # Evaluation
     print('\nGCN Eval ...')
+    print(f'Evaluation timerange length : {len(sg.trange_val)}')
     fig, ax = plt.subplots(1, 2, figsize=(12, 7))
+    df_tot = pd.DataFrame()
 
     if model_name == 'GCN_lc':
         models = trained_models
@@ -182,29 +187,32 @@ def run(data, val_size, test_size, cache, batch_size, feat_struct, step_predicti
         if feat_struct=='temporal_edges':
             k_indexes = sg.last_k_emb_idx
 
-        print(sg.val_pos_g)
-        print(sg.val_pos_g.edges())
-        history_score, val_pos_score, val_neg_score = trained_model.test(pred, 
-                                                            sg.val_pos_g, 
-                                                            sg.val_neg_g, 
-                                                            metric=metric, 
-                                                            feat_struct=feat_struct, 
-                                                            step_prediction=step_prediction,
-                                                            k_indexes=k_indexes,
-                                                            return_all=True)
-        print(f'Done !')
-        print_result(history_score, metric)
+        for val_pos_g, val_neg_g, t in zip(val_pos_g_list, val_neg_g_list, sg.trange_val):
+            if val_pos_g.number_of_edges() > 0 and val_neg_g.number_of_edges() > 0:
+                history_score, val_pos_score, val_neg_score = trained_model.test(pred, 
+                                                                    val_pos_g, 
+                                                                    val_neg_g, 
+                                                                    metric=metric, 
+                                                                    feat_struct=feat_struct, 
+                                                                    step_prediction=step_prediction,
+                                                                    k_indexes=k_indexes,
+                                                                    return_all=True)
+                #print(f'Done !')
+                #print_result(history_score, metric)
 
-        # Plot Results
-        hist_train_loss = [float(x) for x in trained_model.history_train_['train_loss']]
-        if len(models) > 1:
-            label = f'{triplets[idx]}'
-        else:
-            label = f'{model_name}'
+                # Plot Results
+                #hist_train_loss = [float(x) for x in trained_model.history_train_['train_loss']]
+                if len(models) > 1:
+                    label = f'{triplets[idx]}'
+                else:
+                    label = f'{model_name}'
 
-        plot_history_loss(hist_train_loss, ax=ax[0], label=label)
-        ax[0].set_xlabel('epochs')       
-        plot_result(history_score, ax=ax[1], title='Eval set - unseen nodes', label=label, metric=metric)
+                df_tmp = pd.DataFrame([[label, history_score['test_auc'], t]], columns=['model', 'score', 'timestep'])
+                df_tot = pd.concat([df_tot, df_tmp])
+
+                #plot_history_loss(hist_train_loss, ax=ax[0], label=label)
+                #ax[0].set_xlabel('epochs')       
+                #plot_result(history_score, ax=ax[1], title='Eval set - unseen nodes', label=label, metric=metric)
 
     # Save results
     res_path = f'{result_path}/{data}/{feat_struct}'
@@ -213,7 +221,17 @@ def run(data, val_size, test_size, cache, batch_size, feat_struct, step_predicti
     else:
         res_filename = f'{data}_GCN_{model_name}_{feat_struct}_unseen_eval_{metric}'
 
-    save_figures(fig, res_path, res_filename)
+    df_tot.to_pickle(f'{res_path}/{res_filename}.pkl', protocol=3)
+
+    
+    # Save results
+    '''res_path = f'{result_path}/{data}/{feat_struct}'
+    if feat_struct == 'temporal_edges':
+        res_filename = f'{data}_GCN_{model_name}_{feat_struct}_unseen_eval_{metric}_{step_prediction}'
+    else:
+        res_filename = f'{data}_GCN_{model_name}_{feat_struct}_unseen_eval_{metric}'
+
+    save_figures(fig, res_path, res_filename)'''
     
     # Test
     '''print('\n GCN test ...')

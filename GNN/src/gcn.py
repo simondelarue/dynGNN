@@ -57,6 +57,7 @@ class GCNModel(nn.Module):
     def test(self, predictor, test_pos_g, test_neg_g, metric, feat_struct, step_prediction=None, k_indexes=None, return_all=True):
 
         history = {} # useful for plots
+        embedding = self.embedding_
 
         with torch.no_grad():
 
@@ -69,17 +70,17 @@ class GCNModel(nn.Module):
                 
                 # Embeddings for specific nodes and timesteps are retrieved using 'k_indexes' dictionary
                 # If a node has never been seen, its embedding vector is initialized as a 0 tensor
-                res_emb = torch.zeros(test_pos_g.number_of_nodes(), self.embedding_.shape[1])
+                res_emb = torch.zeros(test_pos_g.number_of_nodes(), embedding.shape[1])
                 for i in range(test_pos_g.number_of_nodes()):
                     if k_indexes.get(i) is not None:
-                        res_emb[i, :] = torch.mean(self.embedding_[k_indexes.get(i)[-min(k_embs, len(k_indexes.get(i))):], :], dim=0)
+                        res_emb[i, :] = torch.mean(embedding[k_indexes.get(i)[-min(k_embs, len(k_indexes.get(i))):], :], dim=0)
                     else:
-                        res_emb[i, :] = torch.zeros(self.embedding_.shape[1])
-                self.embedding_ = res_emb
+                        res_emb[i, :] = torch.zeros(embedding.shape[1])
+                embedding = res_emb
 
 
-            pos_score = predictor(test_pos_g, self.embedding_)
-            neg_score = predictor(test_neg_g, self.embedding_)
+            pos_score = predictor(test_pos_g, embedding)
+            neg_score = predictor(test_neg_g, embedding)
 
             if metric=='auc':
                 auc, fpr, tpr = compute_auc(pos_score, neg_score)
