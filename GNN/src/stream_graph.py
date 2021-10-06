@@ -279,7 +279,7 @@ class StreamGraph():
                     train_batch_timerange = np.arange(int(train_neg_batch_g.edata['timestamp'].min()), int(train_neg_batch_g.edata['timestamp'].max()) + 20, 20)
                     # Compute features 
                     if train_batch_timerange[0] != 0:
-                        train_neg_batch_feat = compute_agg_features(train_batch_g, train_batch_timerange, add_self_edges=add_self_edges) 
+                        train_neg_batch_feat = compute_agg_features(train_neg_batch_g, train_batch_timerange, add_self_edges=add_self_edges) 
                         if normalized:
                             train_neg_batch_g.ndata['feat'] = normalize_adj(train_neg_batch_feat)
                         else:
