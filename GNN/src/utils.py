@@ -91,6 +91,7 @@ def sample_neighbors(g, node):
     
     return src_nodes     
 
+
 def make_edge_list(src, dest, t, mask):
     return [(u, v, t) for u, v, t in zip(src[mask].numpy(), dest[mask].numpy(), t[mask].numpy())]
 

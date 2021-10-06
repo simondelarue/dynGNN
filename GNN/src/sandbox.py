@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 import os
 import time
+from timesteps import *
 import itertools
 import matplotlib.pyplot as plt
 import dgl
@@ -41,44 +42,23 @@ def run(data, val_size, test_size, cache, batch_size, feat_struct, step_predicti
     if batch_size != 0:
         sg.create_batches(batch_size)
 
-    sum_pos = 0
-    for idx, g in enumerate(sg.train_pos_batches):
-        sum_pos += g.number_of_edges()
-    sum_neg = 0
-    for idx, g in enumerate(sg.train_neg_batches):
-        sum_neg += g.number_of_edges()
-    print(f'Sum pos : {sum_pos} - sum neg : {sum_neg}')
-    print(f'training pos g : {sg.train_pos_g.number_of_edges()}')
-    print(f'training neg g : {sg.train_neg_g.number_of_edges()}')
-        
+
     # ------ Compute features ------
     # Features are computed accordingly to data structure and/or model.
     start = time.time()
     sg.compute_features(feat_struct, add_self_edges=True, normalized=norm)
     end = time.time()
     
+    
     # Step link prediction ----------------
-    # Link prediction on test set is evaluated only for the timestep coming right next to the training period.
-    val_pos_g_list = []
-    val_neg_g_list = []
-
-    for t in sg.trange_val:
-        global val_t
-        val_t = t
-
-        def edges_with_feature_t(edges):
-            # Whether an edge has a timestamp equals to t
-            return (edges.data['timestamp'] == val_t)
-
-        eids = sg.val_pos_g.filter_edges(edges_with_feature_t)
-        eids_neg = sg.val_neg_g.filter_edges(edges_with_feature_t)
-        val_pos_g = dgl.edge_subgraph(sg.val_pos_g, eids, preserve_nodes=True)
-        val_neg_g = dgl.edge_subgraph(sg.val_neg_g, eids_neg, preserve_nodes=True)
-        val_pos_g_list.append(val_pos_g)
-        val_neg_g_list.append(val_neg_g)
+    # Link prediction on test set is evaluated for each timestep. In order to maintain the number of edge's distribution over time, 
+    # we perform negative sampling on each snapshot in the test set
+    val_pos_g_list, val_neg_g_list = step_linkpred_preprocessing(sg.val_pos_g, sg.trange_val, negative_sampling=True)
+    print(f'Len val_pos_g_list : {len(val_pos_g_list)}')
+    print(f'Len val_neg_g_list : {len(val_neg_g_list)}')
     
     # ------ Number of edges per batch ------
-    # Training set
+    '''# Training set
     sum_pos = 0
     for idx, g in enumerate(sg.train_pos_batches):
         sum_pos += g.number_of_edges()
@@ -97,17 +77,23 @@ def run(data, val_size, test_size, cache, batch_size, feat_struct, step_predicti
     plt.ylabel('|E|')
     plt.legend()
     plt.title(f'Number of edges by batch in training dataset (total |E|={sum_pos + sum_neg})', weight='bold')
-    save_figures(fig, f'{result_path}', f'{data}_number_of_edges_train')
+    save_figures(fig, f'{result_path}', f'{data}_number_of_edges_train')'''
     
     # Evaluation set
+    sum_pos = 0
+    for idx, g in enumerate(val_pos_g_list):
+        sum_pos += g.number_of_edges()
+    sum_neg = 0
+    for idx, g in enumerate(val_neg_g_list):
+        sum_neg += g.number_of_edges()
     fig, ax = plt.subplots(1, 1, figsize=(15, 5))
     width = 0.3
-    plt.bar([i for i in range(len(sg.trange_val))], [val_pos_g_list[i].number_of_edges() for i in range(len(sg.trange_val))], label=f'positive edges (total={sg.val_pos_g.number_of_edges()})', width=width)
-    plt.bar([i+width for i in range(len(sg.trange_val))], [val_neg_g_list[i].number_of_edges() for i in range(len(sg.trange_val))], label=f'negative edges (total={sg.val_neg_g.number_of_edges()})', width=width)
+    plt.bar([i for i in range(len(sg.trange_val))], [val_pos_g_list[i].number_of_edges() for i in range(len(sg.trange_val))], label=f'positive edges (total={sum_pos})', width=width)
+    plt.bar([i+width for i in range(len(sg.trange_val))], [val_neg_g_list[i].number_of_edges() for i in range(len(sg.trange_val))], label=f'negative edges (total={sum_neg})', width=width)
     plt.xlabel('timestep')
     plt.ylabel('|E|')
     plt.legend()
-    plt.title(f'Number of edges by timestep in evaluation dataset (total |E|={sg.val_pos_g.number_of_edges() + sg.val_neg_g.number_of_edges()})', weight='bold')
+    plt.title(f'Number of edges by timestep in evaluation dataset (total |E|={sum_pos + sum_neg})', weight='bold')
     save_figures(fig, f'{result_path}', f'{data}_number_of_edges_eval')
 
 if __name__=='__main__':
