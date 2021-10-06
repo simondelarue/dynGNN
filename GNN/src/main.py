@@ -11,6 +11,7 @@ import dgl
 from dgl.data.utils import load_graphs, save_graphs
 import torch
 from utils import *
+from timesteps import *
 from temporal_sampler import temporal_sampler
 from predictor import DotPredictor
 from gcn import *
@@ -49,24 +50,10 @@ def run(data, val_size, test_size, cache, batch_size, feat_struct, step_predicti
     print(f'Elapsed time : {end-start}s')
     
     # Step link prediction ----------------
-    # Link prediction on test set is evaluated only for the timestep coming right next to the training period.
-    val_pos_g_list = []
-    val_neg_g_list = []
-    for t in sg.trange_val:
-        global val_t
-        val_t = t
+    # Link prediction on test set is evaluated for each timestep. In order to maintain the number of edge's distribution over time, 
+    # we perform negative sampling on each snapshot in the test set
+    val_pos_g_list, val_neg_g_list = step_linkpred_preprocessing(sg.val_pos_g, sg.trange_val, negative_sampling=True)
 
-        def edges_with_feature_t(edges):
-            # Whether an edge has a timestamp equals to t
-            return (edges.data['timestamp'] == val_t)
-
-        eids = sg.val_pos_g.filter_edges(edges_with_feature_t)
-        eids_neg = sg.val_neg_g.filter_edges(edges_with_feature_t)
-        val_pos_g = dgl.edge_subgraph(sg.val_pos_g, eids, preserve_nodes=True)
-        val_neg_g = dgl.edge_subgraph(sg.val_neg_g, eids_neg, preserve_nodes=True)
-        val_pos_g_list.append(val_pos_g)
-        val_neg_g_list.append(val_neg_g)
-    
 
 
     # ====== Graph Neural Networks ======
@@ -222,7 +209,7 @@ def run(data, val_size, test_size, cache, batch_size, feat_struct, step_predicti
     else:
         res_filename = f'{data}_GCN_{model_name}_{feat_struct}_unseen_eval_{metric}'
 
-    df_tot.to_pickle(f'{res_path}/{res_filename}.pkl', protocol=3)
+    #df_tot.to_pickle(f'{res_path}/{res_filename}.pkl', protocol=3)
 
     
     # Save results
@@ -261,6 +248,7 @@ def run(data, val_size, test_size, cache, batch_size, feat_struct, step_predicti
 # TODO
 
 # - Ajout du jeu de données AS
+# - Pdag simplifié
 # - Utilisation de la métrique de score mAP (average_precision_score() from scikit-learn)
 # - Tâche de ML sous-jacente : Classification
 
