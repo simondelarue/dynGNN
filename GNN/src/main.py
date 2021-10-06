@@ -207,7 +207,8 @@ def run(data, val_size, test_size, cache, batch_size, feat_struct, step_predicti
                 else:
                     label = f'{model_name}'
 
-                df_tmp = pd.DataFrame([[label, history_score['test_auc'], t]], columns=['model', 'score', 'timestep'])
+                df_tmp = pd.DataFrame([[label, history_score['test_auc'], t, val_pos_g.number_of_edges(), val_neg_g.number_of_edges]], 
+                                        columns=['model', 'score', 'timestep', 'number_of_edges_pos', 'number_of_edges_neg'])
                 df_tot = pd.concat([df_tot, df_tmp])
 
                 #plot_history_loss(hist_train_loss, ax=ax[0], label=label)
@@ -260,7 +261,7 @@ def run(data, val_size, test_size, cache, batch_size, feat_struct, step_predicti
 # TODO
 
 # - Ajout du jeu de données AS
-# - Moyenne des AUC sur la totalité des timesteps de test
+# - Utilisation de la métrique de score mAP (average_precision_score() from scikit-learn)
 # - Tâche de ML sous-jacente : Classification
 
 if __name__=='__main__':
