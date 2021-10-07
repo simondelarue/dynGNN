@@ -340,6 +340,12 @@ class StreamGraph():
         test_cut = 1 - test_size
         val_time, test_time = np.quantile(self.g.edata['timestamp'], [val_cut, test_cut])
 
+        # If dataset is 'HighSchool', train test split is fixed automatically to fit days in data
+        if self.name == 'HighSchool':
+            val_time = 1386226820
+            test_time = 1386259200
+            print(f'For this dataset, val and test lengths have been forced to fixed sizes.')
+
         # Split edge set for training, validation and test
         # Edges are divided into 2 groups : positive (link in graph) and negative (no link in graph)
         source, dest = self.g.edges()
@@ -445,4 +451,4 @@ class StreamGraph():
         self.train_pos_g = train_pos_g
         self.val_pos_g = val_pos_g
         self.test_pos_g = test_pos_g
-        self.test_pos_seen_g = test_pos_seen_g        
+        self.test_pos_seen_g = test_pos_seen_g

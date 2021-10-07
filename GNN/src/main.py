@@ -202,6 +202,8 @@ def run(data, val_size, test_size, cache, batch_size, feat_struct, step_predicti
                 #ax[0].set_xlabel('epochs')       
                 #plot_result(history_score, ax=ax[1], title='Eval set - unseen nodes', label=label, metric=metric)
 
+    print('Done !')
+
     # Save results
     res_path = f'{result_path}/{data}/{feat_struct}'
     if feat_struct == 'temporal_edges':
@@ -209,7 +211,8 @@ def run(data, val_size, test_size, cache, batch_size, feat_struct, step_predicti
     else:
         res_filename = f'{data}_GCN_{model_name}_{feat_struct}_unseen_eval_{metric}'
 
-    #df_tot.to_pickle(f'{res_path}/{res_filename}.pkl', protocol=3)
+    df_tot.to_pickle(f'{res_path}/{res_filename}.pkl', protocol=3)
+    print(f'Results saved in {res_path}/{res_filename}.pkl')
 
     
     # Save results
