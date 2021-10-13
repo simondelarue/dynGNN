@@ -96,9 +96,9 @@ def run(data, val_size, test_size, cache, batch_size, feat_struct, step_predicti
             start = time.time()
             print('\nGCN training ...')
             print(f'Training timerange length : {len(sg.trange_train)}')
-            model.train_simplified(optimizer=optimizer,
+            model.train(optimizer=optimizer,
                         predictor=pred,
-                        loss=compute_loss_simp,
+                        loss=compute_loss,
                         device=device,
                         epochs=epochs,
                         **kwargs)

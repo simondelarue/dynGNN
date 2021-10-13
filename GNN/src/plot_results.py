@@ -45,7 +45,7 @@ if __name__=='__main__':
                                 label=label)
 
         # Save results
-        filename = f"{dataset}_all_timesteps_trainsimp_cosine"
+        filename = f"{dataset}_all_timesteps_cosine"
         save_figures(fig, f'{global_path}', filename)
 
 
