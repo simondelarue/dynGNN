@@ -13,7 +13,7 @@ import torch
 from utils import *
 from timesteps import *
 from temporal_sampler import temporal_sampler
-from predictor import DotPredictor
+from predictor import DotPredictor, CosinePredictor
 from gcn import *
 from data_loader import DataLoader
 from stream_graph import StreamGraph
@@ -80,7 +80,8 @@ def run(data, val_size, test_size, cache, batch_size, feat_struct, step_predicti
         models = [model_N, model_NN, model_full]
 
     # Predictor
-    pred = DotPredictor()
+    #pred = DotPredictor()
+    pred = CosinePredictor()
 
     # Train model
     kwargs = {'train_pos_g': sg.train_pos_g, 'train_neg_g': sg.train_neg_g}
@@ -95,9 +96,9 @@ def run(data, val_size, test_size, cache, batch_size, feat_struct, step_predicti
             start = time.time()
             print('\nGCN training ...')
             print(f'Training timerange length : {len(sg.trange_train)}')
-            model.train(optimizer=optimizer,
+            model.train_simplified(optimizer=optimizer,
                         predictor=pred,
-                        loss=compute_loss,
+                        loss=compute_loss_simp,
                         device=device,
                         epochs=epochs,
                         **kwargs)
@@ -174,6 +175,26 @@ def run(data, val_size, test_size, cache, batch_size, feat_struct, step_predicti
         if feat_struct=='temporal_edges':
             k_indexes = sg.last_k_emb_idx
 
+        # Full evaluation dataset
+        '''history_score, val_pos_score, val_neg_score = trained_model.test(pred, 
+                                                            sg.val_pos_g, 
+                                                            sg.val_neg_g, 
+                                                            metric=metric, 
+                                                            feat_struct=feat_struct, 
+                                                            step_prediction=step_prediction,
+                                                            k_indexes=k_indexes,
+                                                            return_all=True)
+
+        if len(models) > 1:
+            label = f'{triplets[idx]}'
+        else:
+            label = f'{model_name}'
+
+        df_tmp = pd.DataFrame([[label, history_score['test_auc'], sg.val_pos_g.number_of_edges(), sg.val_neg_g.number_of_edges]], 
+                                columns=['model', 'score', 'number_of_edges_pos', 'number_of_edges_neg'])
+        df_tot = pd.concat([df_tot, df_tmp])'''
+
+        # Step evaluation dataset
         for val_pos_g, val_neg_g, t in zip(val_pos_g_list, val_neg_g_list, sg.trange_val):
             if val_pos_g.number_of_edges() > 0 and val_neg_g.number_of_edges() > 0:
                 history_score, val_pos_score, val_neg_score = trained_model.test(pred, 
@@ -207,12 +228,13 @@ def run(data, val_size, test_size, cache, batch_size, feat_struct, step_predicti
     # Save results
     res_path = f'{result_path}/{data}/{feat_struct}'
     if feat_struct == 'temporal_edges':
-        res_filename = f'{data}_GCN_{model_name}_{feat_struct}_unseen_eval_{metric}_{step_prediction}'
+        res_filename = f'{data}_GCN_{model_name}_{feat_struct}_eval_{metric}_{step_prediction}'
     else:
-        res_filename = f'{data}_GCN_{model_name}_{feat_struct}_unseen_eval_{metric}'
+        res_filename = f'{data}_GCN_{model_name}_{feat_struct}_eval_{metric}'
 
     df_tot.to_pickle(f'{res_path}/{res_filename}.pkl', protocol=3)
     print(f'Results saved in {res_path}/{res_filename}.pkl')
+    print(df_tot.shape)
 
     
     # Save results
