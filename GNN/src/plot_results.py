@@ -14,7 +14,7 @@ def plot_val_score(x, y, ax, metric, label):
 if __name__=='__main__':
     global_path = '/home/infres/sdelarue/node-embedding/GNN/results'
 
-    datasets = ['SF2H', 'HighSchool']
+    datasets = ['SF2H']
     #datasets = ['HighSchool']
     methods = ['agg', 'temporal_edges', 'time_tensor']
     step_predictions = ['single', 'multi']
@@ -32,19 +32,20 @@ if __name__=='__main__':
                 # Plot results
                 avg_score = np.mean(df_tmp['score'])
                 if method=='temporal_edges':
-                    step_pred = f[-17:-12]
+                    step_pred = f[-10:-4]
                     label = f"{df_tmp['model'].unique()[0]} - {method} - {step_pred} - Avg AUC={avg_score:.2f}"
                 else:
                     label = f"{df_tmp['model'].unique()[0]} - {method} - Avg AUC={avg_score:.2f}"
 
-                plot_val_score(np.array(df_tmp['timestep']),
+                plot_val_score(#np.array(df_tmp['timestep'])
+                                range(len(np.array(df_tmp['score']))),
                                 np.array(df_tmp['score']),
                                 ax=ax,
                                 metric='ROC AUC',
                                 label=label)
 
         # Save results
-        filename = f"{dataset}_all_timesteps"
+        filename = f"{dataset}_all_timesteps_cosine"
         save_figures(fig, f'{global_path}', filename)
 
 
