@@ -80,8 +80,8 @@ def run(data, val_size, test_size, cache, batch_size, feat_struct, step_predicti
         models = [model_N, model_NN, model_full]
 
     # Predictor
-    #pred = DotPredictor()
-    pred = CosinePredictor()
+    pred = DotPredictor()
+    #pred = CosinePredictor()
 
     # Train model
     kwargs = {'train_pos_g': sg.train_pos_g, 'train_neg_g': sg.train_neg_g}

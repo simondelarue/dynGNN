@@ -14,8 +14,7 @@ def plot_val_score(x, y, ax, metric, label):
 if __name__=='__main__':
     global_path = '/home/infres/sdelarue/node-embedding/GNN/results'
 
-    datasets = ['SF2H']
-    #datasets = ['HighSchool']
+    datasets = ['SF2H', 'HighSchool']
     methods = ['agg', 'temporal_edges', 'time_tensor']
     step_predictions = ['single', 'multi']
 
@@ -45,7 +44,7 @@ if __name__=='__main__':
                                 label=label)
 
         # Save results
-        filename = f"{dataset}_all_timesteps_cosine"
+        filename = f"{dataset}_all_timesteps"
         save_figures(fig, f'{global_path}', filename)
 
 

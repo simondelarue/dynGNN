@@ -53,6 +53,41 @@ class GCNModel(nn.Module):
 
         self.embedding_ = h
         self.history_train_ = history
+
+    def train_simp(self, optimizer, predictor, loss, device, epochs, **kwargs):
+        
+        history = defaultdict(list) # Useful for plots
+
+        # Arguments
+        train_pos_g = kwargs['train_pos_g']
+        #train_neg_g = kwargs['train_neg_g']
+        
+        for epoch in range(epochs):
+            
+            # To device
+            #train_g = train_g.to(device)
+            train_pos_g = train_pos_g.to(device)
+            #train_neg_g = train_neg_g.to(device)
+
+            # forward
+            h = self.forward(train_pos_g, train_pos_g.ndata['feat'].to(torch.float32)).cpu()
+            pos_score = predictor(train_pos_g, h.to(device))
+            #neg_score = predictor(train_neg_g, h.to(device))
+            loss_val = loss(pos_score, device)
+            
+            #Save results
+            history['train_loss'].append(loss_val.cpu().detach().numpy())
+            
+            # backward
+            optimizer.zero_grad()
+            loss_val.backward()
+            optimizer.step()
+
+            if epoch%10==0:
+                print(f'In epoch {epoch}, loss: {loss_val:.5f}')
+
+        self.embedding_ = h
+        self.history_train_ = history
         
     def test(self, predictor, test_pos_g, test_neg_g, metric, feat_struct, step_prediction=None, k_indexes=None, return_all=True):
 
