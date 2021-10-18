@@ -39,7 +39,7 @@ def run(data, val_size, test_size, cache, batch_size, feat_struct, step_predicti
     print(f'Elapsed time : {end-start}s')
 
     # ------ Deduplicate edges in training graphs ------
-    print('dup edges : ', dup_edges)
+    print('Duplicate edges : ', dup_edges)
     if dup_edges == 'False':
         sg.train_g = dgl.to_simple(sg.train_g, copy_ndata=True, copy_edata=True)
         sg.train_pos_g = dgl.to_simple(sg.train_pos_g, copy_ndata=True, copy_edata=True)
@@ -305,7 +305,7 @@ if __name__=='__main__':
     parser.add_argument('--epochs', type=int, help='Number of epochs in training', default=1)
     parser.add_argument('--lr', type=float, help='Learning rate in for training', default=0.001)
     parser.add_argument('--metric', type=str, help='Evaluation metric : \{auc, f1_score, classification_report\}', default='auc')
-    parser.add_argument('--duplicate_edges', type=str, help='If true, allows duplicate edges in training graphs', default='true')
+    parser.add_argument('--duplicate_edges', type=str, help='If true, allows duplicate edges in training graphs', default='True')
     args = parser.parse_args()
 
     # ------ Parameters ------
