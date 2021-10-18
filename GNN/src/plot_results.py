@@ -46,7 +46,7 @@ if __name__=='__main__':
                                 label=label)
 
         # Save results
-        filename = f"{dataset}_all_timesteps"
+        filename = f"{dataset}_all_timesteps_dup_edges"
         save_figures(fig, f'{global_path}', filename)
 
 
