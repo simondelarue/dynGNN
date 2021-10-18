@@ -18,7 +18,33 @@ from gcn import *
 from data_loader import DataLoader
 from stream_graph import StreamGraph
 
-def run(data, val_size, test_size, cache, batch_size, feat_struct, step_prediction, norm, emb_size, model_name, epochs, lr, metric, device, result_path):
+def step_linkpred_preprocessing2(g , timerange):
+
+    # Results lists
+    val_g_list = []
+    val_neg_g_list = []
+
+    def edges_with_feature_t(edges):
+        # Whether an edge has a timestamp equals to t
+        return (edges.data['timestamp'] == val_t)
+
+    for t in timerange:
+        # -------- Positive edges ---------
+        global val_t
+        val_t = t
+        eids = g.filter_edges(edges_with_feature_t) # Filters edges for each timestep
+        val_pos_g = dgl.edge_subgraph(g, eids, preserve_nodes=True)
+        val_g_list.append(val_pos_g)
+        src_t, dest_t = val_pos_g.edges()
+
+        # -------- Negative edges ---------
+        val_neg_g = step_linkpred_neg_sampling(src_t, dest_t, val_pos_g.number_of_nodes(), k=3)
+        val_neg_g_list.append(val_neg_g)
+
+    print('TOTAL EDGES', np.sum([g.number_of_edges() for g in val_g_list]))
+    return val_g_list, val_neg_g_list
+
+def run(data, val_size, test_size, cache, batch_size, feat_struct, step_prediction, timestep, norm, emb_size, model_name, epochs, lr, metric, device, result_path):
 
     # ------ Load Data & preprocessing ------
     dl = DataLoader(data)
@@ -34,7 +60,7 @@ def run(data, val_size, test_size, cache, batch_size, feat_struct, step_predicti
         glist = list(load_graphs(f"{os.getcwd()}/{args.cache}/data.bin")[0])
         train_g, train_pos_g, train_neg_g, val_pos_g, val_neg_g, test_pos_g, test_neg_g, test_pos_seen_g, test_neg_seen_g = glist 
     else:
-        sg.train_test_split(val_size, test_size, neg_sampling=True)
+        sg.train_test_split(val_size, test_size, timestep=timestep, neg_sampling=True)
     end = time.time()
     print(f'Elapsed time : {end-start}s')
 
@@ -42,12 +68,25 @@ def run(data, val_size, test_size, cache, batch_size, feat_struct, step_predicti
     if batch_size != 0:
         sg.create_batches(batch_size)
 
+    print('POS')
+    print(sg.train_pos_g.number_of_edges())
+    print(sg.val_pos_g.number_of_edges())
+    print('NEG')
+    print(sg.train_neg_g.number_of_edges())
+    print(sg.val_neg_g.number_of_edges())
 
     # ------ Compute features ------
     # Features are computed accordingly to data structure and/or model.
     start = time.time()
-    sg.compute_features(feat_struct, add_self_edges=True, normalized=norm)
+    #sg.compute_features(feat_struct, add_self_edges=True, normalized=norm)
     end = time.time()
+
+    print('POS')
+    print(sg.train_pos_g.number_of_edges())
+    print(sg.val_pos_g.number_of_edges())
+    print('NEG')
+    print(sg.train_neg_g.number_of_edges())
+    print(sg.val_neg_g.number_of_edges())
     
     
     # Step link prediction ----------------
@@ -93,8 +132,30 @@ def run(data, val_size, test_size, cache, batch_size, feat_struct, step_predicti
     plt.xlabel('timestep')
     plt.ylabel('|E|')
     plt.legend()
-    plt.title(f'Number of edges by timestep in evaluation dataset (total |E|={sum_pos + sum_neg})', weight='bold')
-    save_figures(fig, f'{result_path}', f'{data}_number_of_edges_eval')
+    #plt.title(f'Number of edges by timestep in evaluation dataset (total |E|={sum_pos + sum_neg})', weight='bold')
+    save_figures(fig, f'{result_path}', f'{data}_number_of_edges_val_last')
+
+    # Without timesteps distinction
+    train_pos_g_list, train_neg_g_list_ts = step_linkpred_preprocessing2(sg.train_pos_g, sg.trange_train)
+    train_neg_g_list, _ = step_linkpred_preprocessing2(sg.train_neg_g, sg.trange_train)
+    nb_edges_pos = [g.number_of_edges() for g in train_pos_g_list]
+    nb_edges_neg_ts = [g.number_of_edges() for g in train_neg_g_list_ts]
+    nb_edges_neg = [g.number_of_edges() for g in train_neg_g_list]
+    
+    length_cut = round(len(train_pos_g_list)/4)
+
+    fig, ax = plt.subplots(1, 2, figsize=(15, 5))
+    width = 0.3
+    ax[0].bar([i for i in range(len(sg.trange_train))][:length_cut], nb_edges_pos[:length_cut], label=f'positive edges', width=width, alpha=0.8)
+    ax[0].bar([i+width for i in range(len(sg.trange_train))][:length_cut], nb_edges_neg_ts[:length_cut], label=f'negative edges', width=width, alpha=0.8)
+    ax[1].bar([i for i in range(len(sg.trange_train))][:length_cut], nb_edges_pos[:length_cut], label=f'positive edges', width=width, alpha=0.8)
+    ax[1].bar([i+width for i in range(len(sg.trange_train))][:length_cut], nb_edges_neg[:length_cut], label=f'negative edges', width=width, alpha=0.8)
+    for i in range(2):
+        ax[i].set_xlabel('timestep')
+        ax[i].set_ylabel('|E|')
+        ax[i].legend()
+    #plt.title(f'Number of edges by timestep in evaluation dataset (total |E|={sum_pos + sum_neg})', weight='bold')
+    save_figures(fig, f'{result_path}', f'{data}_number_of_edges_train_last')
 
 if __name__=='__main__':
 
@@ -108,6 +169,7 @@ if __name__=='__main__':
     parser.add_argument('--feat_struct', type=str, help='Data structure : \{agg, time_tensor, temporal_edges\}', default='time_tensor')
     parser.add_argument('--step_prediction', type=str, help="If data structure is 'temporal_edges', either 'single' or 'multi' step predictions can be used.", default=None)
     parser.add_argument('--normalized', type=bool, help='If true, normalized adjacency is used', default=True)
+    parser.add_argument('--timestep', type=int, default=20)
     parser.add_argument('--model', type=str, help='GCN model : \{GraphConv, GraphSage, GCNTime\}', default='GraphConv')
     parser.add_argument('--batch_size', type=int, help='If batch_size > 0, stream graph is splitted into batches.', default=0)
     parser.add_argument('--emb_size', type=int, help='Embedding size', default=20)
@@ -121,7 +183,7 @@ if __name__=='__main__':
     TEST_SIZE = 0.15
 
     BATCH_SIZE = args.batch_size
-    TIMESTEP = 20 # SF2H dataset timestep
+    TIMESTEP = args.timestep 
     EMB_SIZE = args.emb_size
     MODEL = args.model
     EPOCHS = args.epochs
@@ -146,6 +208,7 @@ if __name__=='__main__':
         BATCH_SIZE,
         FEAT_STRUCT,
         STEP_PREDICTION,
+        TIMESTEP,
         NORM,
         EMB_SIZE,
         MODEL,

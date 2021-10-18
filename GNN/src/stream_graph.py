@@ -328,7 +328,7 @@ class StreamGraph():
         print('Done !')
 
 
-    def train_test_split(self, val_size: float = 0.15, test_size: float = 0.15, neg_sampling: bool = True):
+    def train_test_split(self, val_size: float, test_size: float, timestep: int, neg_sampling: bool = True):
 
         print('\nSplitting graph ...')
 
@@ -390,7 +390,7 @@ class StreamGraph():
             edge_list_val = make_edge_list(source, dest, timestamp, val_mask)
             edge_list_test = make_edge_list(source, dest, timestamp, test_mask)
             edge_list_seen_test = make_edge_list(test_pos_seen_g.edges()[0], test_pos_seen_g.edges()[1], test_pos_seen_g.edata['timestamp'], [True]*len(test_pos_seen_g.edata['timestamp']))
-            timerange = np.arange(int(self.g.edata['timestamp'].min()), int(self.g.edata['timestamp'].max()), 20)
+            timerange = np.arange(int(self.g.edata['timestamp'].min()), int(self.g.edata['timestamp'].max()), timestep)
 
             # Masks for negative edges according to splits
             train_mask_neg = timerange <= val_time

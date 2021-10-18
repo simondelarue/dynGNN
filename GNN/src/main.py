@@ -18,7 +18,7 @@ from gcn import *
 from data_loader import DataLoader
 from stream_graph import StreamGraph
 
-def run(data, val_size, test_size, cache, batch_size, feat_struct, step_prediction, norm, emb_size, model_name, epochs, lr, metric, device, result_path):
+def run(data, val_size, test_size, cache, batch_size, feat_struct, step_prediction, timestep, norm, emb_size, model_name, epochs, lr, metric, device, result_path, dup_edges):
 
     # ------ Load Data & preprocessing ------
     dl = DataLoader(data)
@@ -34,10 +34,17 @@ def run(data, val_size, test_size, cache, batch_size, feat_struct, step_predicti
         glist = list(load_graphs(f"{os.getcwd()}/{args.cache}/data.bin")[0])
         train_g, train_pos_g, train_neg_g, val_pos_g, val_neg_g, test_pos_g, test_neg_g, test_pos_seen_g, test_neg_seen_g = glist 
     else:
-        sg.train_test_split(val_size, test_size, neg_sampling=True)
+        sg.train_test_split(val_size, test_size, timestep=timestep, neg_sampling=True)
     end = time.time()
     print(f'Elapsed time : {end-start}s')
 
+    # ------ Deduplicate edges in training graphs ------
+    print('dup edges : ', dup_edges)
+    if dup_edges == 'False':
+        sg.train_g = dgl.to_simple(sg.train_g, copy_ndata=True, copy_edata=True)
+        sg.train_pos_g = dgl.to_simple(sg.train_pos_g, copy_ndata=True, copy_edata=True)
+        sg.train_neg_g = dgl.to_simple(sg.train_neg_g, copy_ndata=True, copy_edata=True)
+    
     # ------ Create batches ------
     if batch_size != 0:
         sg.create_batches(batch_size)
@@ -176,7 +183,9 @@ def run(data, val_size, test_size, cache, batch_size, feat_struct, step_predicti
             k_indexes = sg.last_k_emb_idx
 
         # Full evaluation dataset
-        '''history_score, val_pos_score, val_neg_score = trained_model.test(pred, 
+        print(f'VAL POS G : {sg.val_pos_g}')
+        print(f'VAL NEG G : {sg.val_neg_g}')
+        history_score, val_pos_score, val_neg_score = trained_model.test(pred, 
                                                             sg.val_pos_g, 
                                                             sg.val_neg_g, 
                                                             metric=metric, 
@@ -192,10 +201,10 @@ def run(data, val_size, test_size, cache, batch_size, feat_struct, step_predicti
 
         df_tmp = pd.DataFrame([[label, history_score['test_auc'], sg.val_pos_g.number_of_edges(), sg.val_neg_g.number_of_edges]], 
                                 columns=['model', 'score', 'number_of_edges_pos', 'number_of_edges_neg'])
-        df_tot = pd.concat([df_tot, df_tmp])'''
+        df_tot = pd.concat([df_tot, df_tmp])
 
         # Step evaluation dataset
-        for val_pos_g, val_neg_g, t in zip(val_pos_g_list, val_neg_g_list, sg.trange_val):
+        '''for val_pos_g, val_neg_g, t in zip(val_pos_g_list, val_neg_g_list, sg.trange_val):
             if val_pos_g.number_of_edges() > 0 and val_neg_g.number_of_edges() > 0:
                 history_score, val_pos_score, val_neg_score = trained_model.test(pred, 
                                                                     val_pos_g, 
@@ -223,7 +232,7 @@ def run(data, val_size, test_size, cache, batch_size, feat_struct, step_predicti
                 #ax[0].set_xlabel('epochs')       
                 #plot_result(history_score, ax=ax[1], title='Eval set - unseen nodes', label=label, metric=metric)
 
-    print('Done !')
+    print('Done !')'''
 
     # Save results
     res_path = f'{result_path}/{data}/{feat_struct}'
@@ -291,10 +300,12 @@ if __name__=='__main__':
     parser.add_argument('--normalized', type=bool, help='If true, normalized adjacency is used', default=True)
     parser.add_argument('--model', type=str, help='GCN model : \{GraphConv, GraphSage, GCNTime\}', default='GraphConv')
     parser.add_argument('--batch_size', type=int, help='If batch_size > 0, stream graph is splitted into batches.', default=0)
+    parser.add_argument('--timestep', type=int, help='Finest granularity in temporal data.', default=20)
     parser.add_argument('--emb_size', type=int, help='Embedding size', default=20)
     parser.add_argument('--epochs', type=int, help='Number of epochs in training', default=1)
     parser.add_argument('--lr', type=float, help='Learning rate in for training', default=0.001)
     parser.add_argument('--metric', type=str, help='Evaluation metric : \{auc, f1_score, classification_report\}', default='auc')
+    parser.add_argument('--duplicate_edges', type=str, help='If true, allows duplicate edges in training graphs', default='true')
     args = parser.parse_args()
 
     # ------ Parameters ------
@@ -302,7 +313,7 @@ if __name__=='__main__':
     TEST_SIZE = 0.15
 
     BATCH_SIZE = args.batch_size
-    TIMESTEP = 20 # SF2H dataset timestep
+    TIMESTEP = args.timestep
     EMB_SIZE = args.emb_size
     MODEL = args.model
     EPOCHS = args.epochs
@@ -312,6 +323,7 @@ if __name__=='__main__':
     NORM = args.normalized
     METRIC = args.metric
     DEVICE = torch.device("cuda:2" if torch.cuda.is_available() else "cpu")
+    DUP_EDGES = args.duplicate_edges
 
     print(f'Device : {DEVICE}')
     
@@ -327,6 +339,7 @@ if __name__=='__main__':
         BATCH_SIZE,
         FEAT_STRUCT,
         STEP_PREDICTION,
+        TIMESTEP,
         NORM,
         EMB_SIZE,
         MODEL,
@@ -334,5 +347,6 @@ if __name__=='__main__':
         LR,
         METRIC,
         DEVICE,
-        RESULT_PATH)
+        RESULT_PATH,
+        DUP_EDGES)
 
