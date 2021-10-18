@@ -14,8 +14,10 @@ def plot_val_score(x, y, ax, metric, label):
 if __name__=='__main__':
     global_path = '/home/infres/sdelarue/node-embedding/GNN/results'
 
-    datasets = ['SF2H', 'HighSchool']
-    methods = ['agg', 'temporal_edges', 'time_tensor']
+    #datasets = ['SF2H', 'HighSchool', 'ia-contact']
+    datasets = ['ia-contact']
+    methods = ['agg', 'temporal_edges']
+    #methods = ['agg', 'temporal_edges', 'time_tensor']
     step_predictions = ['single', 'multi']
 
     for dataset in datasets:
@@ -32,9 +34,9 @@ if __name__=='__main__':
                 avg_score = np.mean(df_tmp['score'])
                 if method=='temporal_edges':
                     step_pred = f[-10:-4]
-                    label = f"{df_tmp['model'].unique()[0]} - {method} - {step_pred} - Avg AUC={avg_score:.2f}"
+                    label = f"{df_tmp['model'].unique()[0]} - {method} - {step_pred} - Avg AUC={avg_score:.3f}"
                 else:
-                    label = f"{df_tmp['model'].unique()[0]} - {method} - Avg AUC={avg_score:.2f}"
+                    label = f"{df_tmp['model'].unique()[0]} - {method} - Avg AUC={avg_score:.3f}"
 
                 plot_val_score(#np.array(df_tmp['timestep'])
                                 range(len(np.array(df_tmp['score']))),
@@ -49,7 +51,7 @@ if __name__=='__main__':
 
 
     # GCN Linear combination
-    for dataset in datasets:
+    '''for dataset in datasets:
         fig, ax = plt.subplots(1, 1, figsize=(12, 7))
 
         path = f'{dataset}/agg'
@@ -72,4 +74,4 @@ if __name__=='__main__':
 
         # Save results
         filename = f"{dataset}_GCN_lc_all_timesteps"
-        save_figures(fig, f'{global_path}', filename)
+        save_figures(fig, f'{global_path}', filename)'''

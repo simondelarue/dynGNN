@@ -37,6 +37,8 @@ class DataLoader():
         elif self.name == 'AS':
             print(f'{self.IN_PATH}/as-733/as_100.pkl')
             return pd.read_pickle(f'{self.IN_PATH}/as-733/as_100.pkl')
+        elif self.name == 'ia-contact':
+            return pd.read_csv(f'{self.IN_PATH}/ia-contact.edges', header=None, names=['ij', 'wt'], delimiter='\t')
 
 
     def __save(self, out_name: str):
@@ -75,7 +77,15 @@ class DataLoader():
 
             df_preproc['src'] = df_preproc['i'].apply(lambda x: mapping[x])
             df_preproc['dest'] = df_preproc['j'].apply(lambda x: mapping[x])
-            
-            return df_preproc
+        
+        elif self.name in ['ia-contact']:
+
+            df_preproc = data_df.copy()
+            df_preproc['src'] = df_preproc['ij'].apply(lambda x: int(x.split()[0]))
+            df_preproc['dest'] = df_preproc['ij'].apply(lambda x: int(x.split()[1]))
+            df_preproc['w'] = df_preproc['wt'].apply(lambda x: int(x.split()[0]))
+            df_preproc['t'] = df_preproc['wt'].apply(lambda x: int(x.split()[1]))
+
+        return df_preproc
 
 
