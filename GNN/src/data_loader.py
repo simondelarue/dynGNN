@@ -42,6 +42,8 @@ class DataLoader():
             return pd.read_csv(f'{self.IN_PATH}/ia-contacts_hypertext2009.edges', header=None, names=['i', 'j', 't'], delimiter=',')
         elif self.name == 'ia-enron-employees':
             return pd.read_csv(f'{self.IN_PATH}/ia-enron-employees.edges', header=None, names=['i', 'j', 'c', 't'], delimiter=' ')
+        elif self.name == 'fb-forum':
+            return pd.read_csv(f'{self.IN_PATH}/fb-forum.edges', header=None, names=['i', 'j', 't'], delimiter=',')
 
 
     def __save(self, out_name: str):
@@ -68,7 +70,7 @@ class DataLoader():
 
         print('Preprocessing data ...')
 
-        if self.name in ['SF2H', 'HighSchool', 'AS', 'ia-contacts_hypertext2009', 'ia-enron-employees']:
+        if self.name in ['SF2H', 'HighSchool', 'AS', 'ia-contacts_hypertext2009', 'ia-enron-employees', 'fb-forum']:
 
             # Reindex node labels 
             df_preproc = data_df.copy()
