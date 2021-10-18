@@ -15,7 +15,7 @@ if __name__=='__main__':
     global_path = '/home/infres/sdelarue/node-embedding/GNN/results'
 
     #datasets = ['SF2H', 'HighSchool', 'ia-contact']
-    datasets = ['ia-contacts_hypertext2009']
+    datasets = ['ia-enron-employees']
     methods = ['agg', 'temporal_edges']
     #methods = ['agg', 'temporal_edges', 'time_tensor']
     step_predictions = ['single', 'multi']
