@@ -39,13 +39,11 @@ def run(data, val_size, test_size, cache, batch_size, feat_struct, step_predicti
     print(f'Elapsed time : {end-start}s')
 
     # ------ Deduplicate edges in training graphs ------
+    print('Duplicate edges : ', dup_edges)
     if dup_edges == 'False':
-        print('Duplicate edges are removed')
         sg.train_g = dgl.to_simple(sg.train_g, copy_ndata=True, copy_edata=True)
         sg.train_pos_g = dgl.to_simple(sg.train_pos_g, copy_ndata=True, copy_edata=True)
         sg.train_neg_g = dgl.to_simple(sg.train_neg_g, copy_ndata=True, copy_edata=True)
-        sg.val_pos_g = dgl.to_simple(sg.val_pos_g, copy_ndata=True, copy_edata=True)
-        sg.val_neg_g = dgl.to_simple(sg.val_neg_g, copy_ndata=True, copy_edata=True)
     
     # ------ Create batches ------
     if batch_size != 0:

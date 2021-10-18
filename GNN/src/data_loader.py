@@ -35,10 +35,11 @@ class DataLoader():
         elif self.name == 'HighSchool':
             return pd.read_csv(f'{self.IN_PATH}/High-School_data_2013.csv', header=None, names=['t', 'i', 'j', 'Ci', 'Cj'], delimiter=' ')
         elif self.name == 'AS':
-            print(f'{self.IN_PATH}/as-733/as_100.pkl')
             return pd.read_pickle(f'{self.IN_PATH}/as-733/as_100.pkl')
         elif self.name == 'ia-contact':
             return pd.read_csv(f'{self.IN_PATH}/ia-contact.edges', header=None, names=['ij', 'wt'], delimiter='\t')
+        elif self.name == 'ia-contacts_hypertext2009':
+            return pd.read_csv(f'{self.IN_PATH}/ia-contacts_hypertext2009.edges', header=None, names=['i', 'j', 't'], delimiter=',')
 
 
     def __save(self, out_name: str):
@@ -65,7 +66,7 @@ class DataLoader():
 
         print('Preprocessing data ...')
 
-        if self.name in ['SF2H', 'HighSchool', 'AS']:
+        if self.name in ['SF2H', 'HighSchool', 'AS', 'ia-contacts_hypertext2009']:
 
             # Reindex node labels 
             df_preproc = data_df.copy()
