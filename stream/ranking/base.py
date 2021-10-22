@@ -30,7 +30,8 @@ class BaseRanking(ABC):
 
     def update_transform(self, *args, **kwargs) -> np.ndarray:
         self.update(*args, **kwargs)
-        return self.scores_
+        #return self.scores_
+        return self.new_scores_
 
     def _split_vars(self, shape):
         n_row = shape[0]

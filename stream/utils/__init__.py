@@ -2,6 +2,8 @@
 
 from stream.utils.parse import edgelist2adjacency
 from stream.utils.format import bipartite2undirected
+from stream.utils.neighbors import get_neighbors
+from stream.utils.update import add_edges
 
 class Bunch(dict):
     ''' Container object for datasets.
