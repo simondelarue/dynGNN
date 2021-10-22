@@ -58,7 +58,7 @@ class PageRank(BaseRanking):
         self.data = np.append(self.data, input_matrix.data)
 
         # Recompute
-        self.scores = self.fit(sparse.coo_matrix((self.data, (self.row, self.col))))
+        self.fit(sparse.coo_matrix((self.data, (self.row, self.col))))
         
         return self
 
@@ -80,7 +80,6 @@ class PageRank(BaseRanking):
 
             W = (damping_factor * diag.dot(adjacency)).T.tocoo()
             v0 = (np.ones(n) - damping_factor * out_degrees) * seeds
-            print(v0[:15])
             
             scores = v0
 
