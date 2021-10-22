@@ -103,7 +103,7 @@ class PageRank(BaseRanking):
         data_c = adjacency_tot.data[n_c_all]
         adjacency_c = sparse.coo_matrix((data_c, (row_c, col_c)))
 
-        scores_c = self.fit(adjacency_c, init_scores=self.scores_)
+        self.fit(adjacency_c, init_scores=self.scores_)
 
         return self
 
