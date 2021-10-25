@@ -1,0 +1,4 @@
+model,method,test_agg,duplicate_edges,predictor,loss_func,score
+GraphConv,agg_simp,True,True,dotProduct,BCEWithLogits,0.8586478312448523
+GraphSage,agg_simp,True,True,dotProduct,BCEWithLogits,0.8566922629101323
+GraphSage,temporal_edges,True,True,dotProduct,BCEWithLogits,0.5398646306609334

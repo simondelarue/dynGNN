@@ -305,7 +305,7 @@ if __name__=='__main__':
     parser.add_argument('--data', type=str, help='Dataset name : \{SF2H\}', default='SF2H')
     parser.add_argument('--cache', type=str, help='Path for splitted graphs already cached', default=None)
     parser.add_argument('--feat_struct', type=str, help='Data structure : \{agg, agg_simp, time_tensor, temporal_edges\}', default='time_tensor')
-    parser.add_argument('--step_prediction', type=str, help="If data structure is 'temporal_edges', either 'single' or 'multi' step predictions can be used.", default=None)
+    parser.add_argument('--step_prediction', type=str, help="If data structure is 'temporal_edges', either 'single' or 'multi' step predictions can be used.", default='single')
     parser.add_argument('--normalized', type=bool, help='If true, normalized adjacency is used', default=True)
     parser.add_argument('--model', type=str, help='GCN model : \{GraphConv, GraphSage, GCNTime\}', default='GraphConv')
     parser.add_argument('--batch_size', type=int, help='If batch_size > 0, stream graph is splitted into batches.', default=0)
