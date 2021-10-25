@@ -38,6 +38,9 @@ class GCNModel(nn.Module):
             h = self.forward(train_pos_g, train_pos_g.ndata['feat'].to(torch.float32)).cpu()
             pos_score = predictor(train_pos_g, h.to(device))
             neg_score = predictor(train_neg_g, h.to(device))
+
+            #loss_val = loss(pos_score, neg_score, device)
+            q = train_neg_g.number_of_edges()
             loss_val = loss(pos_score, neg_score, device)
             
             #Save results

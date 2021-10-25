@@ -22,6 +22,13 @@ def compute_loss_simp(pos_score, device):
     labels = torch.ones(pos_score.shape[0]).to(device)
     return F.binary_cross_entropy_with_logits(scores, labels)
 
+
+def graphSage_loss(pos_score, neg_score, device):
+    pos = F.binary_cross_entropy_with_logits(pos_score, torch.ones(pos_score.shape[0]).to(device), reduction='mean')
+    neg = F.binary_cross_entropy_with_logits(neg_score, torch.zeros(neg_score.shape[0]).to(device), reduction='mean')
+    return torch.sum(pos) + 1 * torch.sum(neg)
+
+
 def compute_auc(pos_score, neg_score):
     
     # Compute auc

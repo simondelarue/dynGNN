@@ -18,7 +18,8 @@ from gcn import *
 from data_loader import DataLoader
 from stream_graph import StreamGraph
 
-def run(data, val_size, test_size, cache, batch_size, feat_struct, step_prediction, timestep, norm, emb_size, model_name, epochs, lr, metric, device, result_path, dup_edges):
+def run(data, val_size, test_size, cache, batch_size, feat_struct, step_prediction, timestep, norm, emb_size, model_name, \
+        epochs, lr, metric, device, result_path, dup_edges, test_agg):
 
     # ------ Load Data & preprocessing ------
     dl = DataLoader(data)
@@ -90,6 +91,10 @@ def run(data, val_size, test_size, cache, batch_size, feat_struct, step_predicti
     pred = DotPredictor()
     #pred = CosinePredictor()
 
+    # Loss
+    loss = compute_loss
+    #loss = graphSage_loss
+
     # Train model
     kwargs = {'train_pos_g': sg.train_pos_g, 'train_neg_g': sg.train_neg_g}
 
@@ -105,7 +110,7 @@ def run(data, val_size, test_size, cache, batch_size, feat_struct, step_predicti
             print(f'Training timerange length : {len(sg.trange_train)}')
             model.train(optimizer=optimizer,
                         predictor=pred,
-                        loss=compute_loss,
+                        loss=loss,
                         device=device,
                         epochs=epochs,
                         **kwargs)
@@ -124,7 +129,7 @@ def run(data, val_size, test_size, cache, batch_size, feat_struct, step_predicti
             print('\nGCN training ...')
             model.train(optimizer=optimizer,
                         predictor=pred,
-                        loss=compute_loss,
+                        loss=loss,
                         device=device,
                         epochs=epochs,
                         **kwargs)
@@ -158,7 +163,7 @@ def run(data, val_size, test_size, cache, batch_size, feat_struct, step_predicti
                 print(f'\nGCN training (linear combination parameters : {triplet}) ...')
                 model_full.train(optimizer=optimizer,
                             predictor=pred,
-                            loss=compute_loss,
+                            loss=loss,
                             device=device,
                             epochs=epochs,
                             **kwargs)
@@ -182,57 +187,59 @@ def run(data, val_size, test_size, cache, batch_size, feat_struct, step_predicti
         if feat_struct=='temporal_edges':
             k_indexes = sg.last_k_emb_idx
 
-        # Full evaluation dataset
-        print(f'VAL POS G : {sg.val_pos_g}')
-        print(f'VAL NEG G : {sg.val_neg_g}')
-        history_score, val_pos_score, val_neg_score = trained_model.test(pred, 
-                                                            sg.val_pos_g, 
-                                                            sg.val_neg_g, 
-                                                            metric=metric, 
-                                                            feat_struct=feat_struct, 
-                                                            step_prediction=step_prediction,
-                                                            k_indexes=k_indexes,
-                                                            return_all=True)
+        if test_agg == 'True':
+            # Full evaluation dataset
+            print(f'VAL POS G : {sg.val_pos_g}')
+            print(f'VAL NEG G : {sg.val_neg_g}')
+            history_score, val_pos_score, val_neg_score = trained_model.test(pred, 
+                                                                sg.val_pos_g, 
+                                                                sg.val_neg_g, 
+                                                                metric=metric, 
+                                                                feat_struct=feat_struct, 
+                                                                step_prediction=step_prediction,
+                                                                k_indexes=k_indexes,
+                                                                return_all=True)
 
-        if len(models) > 1:
-            label = f'{triplets[idx]}'
-        else:
-            label = f'{model_name}'
+            if len(models) > 1:
+                label = f'{triplets[idx]}'
+            else:
+                label = f'{model_name}'
 
-        df_tmp = pd.DataFrame([[label, history_score['test_auc'], sg.val_pos_g.number_of_edges(), sg.val_neg_g.number_of_edges]], 
-                                columns=['model', 'score', 'number_of_edges_pos', 'number_of_edges_neg'])
-        df_tot = pd.concat([df_tot, df_tmp])
+            df_tmp = pd.DataFrame([[label, history_score['test_auc'], 0, sg.val_pos_g.number_of_edges(), sg.val_neg_g.number_of_edges(), test_agg]], 
+                                    columns=['model', 'score', 'timestep', 'number_of_edges_pos', 'number_of_edges_neg', 'test_agg'])
+            df_tot = pd.concat([df_tot, df_tmp])
 
-        # Step evaluation dataset
-        '''for val_pos_g, val_neg_g, t in zip(val_pos_g_list, val_neg_g_list, sg.trange_val):
-            if val_pos_g.number_of_edges() > 0 and val_neg_g.number_of_edges() > 0:
-                history_score, val_pos_score, val_neg_score = trained_model.test(pred, 
-                                                                    val_pos_g, 
-                                                                    val_neg_g, 
-                                                                    metric=metric, 
-                                                                    feat_struct=feat_struct, 
-                                                                    step_prediction=step_prediction,
-                                                                    k_indexes=k_indexes,
-                                                                    return_all=True)
-                #print(f'Done !')
-                #print_result(history_score, metric)
+        elif test_agg == 'False':
+            # Step evaluation dataset
+            for val_pos_g, val_neg_g, t in zip(val_pos_g_list, val_neg_g_list, sg.trange_val):
+                if val_pos_g.number_of_edges() > 0 and val_neg_g.number_of_edges() > 0:
+                    history_score, val_pos_score, val_neg_score = trained_model.test(pred, 
+                                                                        val_pos_g, 
+                                                                        val_neg_g, 
+                                                                        metric=metric, 
+                                                                        feat_struct=feat_struct, 
+                                                                        step_prediction=step_prediction,
+                                                                        k_indexes=k_indexes,
+                                                                        return_all=True)
+                    #print(f'Done !')
+                    #print_result(history_score, metric)
 
-                # Plot Results
-                #hist_train_loss = [float(x) for x in trained_model.history_train_['train_loss']]
-                if len(models) > 1:
-                    label = f'{triplets[idx]}'
-                else:
-                    label = f'{model_name}'
+                    # Plot Results
+                    #hist_train_loss = [float(x) for x in trained_model.history_train_['train_loss']]
+                    if len(models) > 1:
+                        label = f'{triplets[idx]}'
+                    else:
+                        label = f'{model_name}'
 
-                df_tmp = pd.DataFrame([[label, history_score['test_auc'], t, val_pos_g.number_of_edges(), val_neg_g.number_of_edges]], 
-                                        columns=['model', 'score', 'timestep', 'number_of_edges_pos', 'number_of_edges_neg'])
-                df_tot = pd.concat([df_tot, df_tmp])
+                    df_tmp = pd.DataFrame([[label, history_score['test_auc'], t, val_pos_g.number_of_edges(), val_neg_g.number_of_edges(), test_agg]], 
+                                            columns=['model', 'score', 'timestep', 'number_of_edges_pos', 'number_of_edges_neg', 'test_agg'])
+                    df_tot = pd.concat([df_tot, df_tmp])
 
-                #plot_history_loss(hist_train_loss, ax=ax[0], label=label)
-                #ax[0].set_xlabel('epochs')       
-                #plot_result(history_score, ax=ax[1], title='Eval set - unseen nodes', label=label, metric=metric)
+                    #plot_history_loss(hist_train_loss, ax=ax[0], label=label)
+                    #ax[0].set_xlabel('epochs')       
+                    #plot_result(history_score, ax=ax[1], title='Eval set - unseen nodes', label=label, metric=metric)
 
-    print('Done !')'''
+    print('Done !')
 
     # Save results
     res_path = f'{result_path}/{data}/{feat_struct}'
@@ -279,12 +286,6 @@ def run(data, val_size, test_size, cache, batch_size, feat_struct, step_predicti
     plot_result(history_score, ax=ax[1], title='Test set - unseen nodes', label=f'{model_name}', metric=metric)
     fig.savefig(f'{result_path}/{data}_GCN_{model_name}_seen_test_{metric}.png')'''
 
-# TODO
-
-# - Ajout du jeu de données AS
-# - Pdag simplifié
-# - Utilisation de la métrique de score mAP (average_precision_score() from scikit-learn)
-# - Tâche de ML sous-jacente : Classification
 
 if __name__=='__main__':
 
@@ -306,6 +307,7 @@ if __name__=='__main__':
     parser.add_argument('--lr', type=float, help='Learning rate in for training', default=0.001)
     parser.add_argument('--metric', type=str, help='Evaluation metric : \{auc, f1_score, classification_report\}', default='auc')
     parser.add_argument('--duplicate_edges', type=str, help='If true, allows duplicate edges in training graphs', default='True')
+    parser.add_argument('--test_agg', type=str, help='If true, predictions are performed on a static graph test.', default='True')
     args = parser.parse_args()
 
     # ------ Parameters ------
@@ -324,6 +326,7 @@ if __name__=='__main__':
     METRIC = args.metric
     DEVICE = torch.device("cuda:2" if torch.cuda.is_available() else "cpu")
     DUP_EDGES = args.duplicate_edges
+    TEST_AGG = args.test_agg
 
     print(f'Device : {DEVICE}')
     
@@ -348,5 +351,6 @@ if __name__=='__main__':
         METRIC,
         DEVICE,
         RESULT_PATH,
-        DUP_EDGES)
+        DUP_EDGES,
+        TEST_AGG)
 

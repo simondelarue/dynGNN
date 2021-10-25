@@ -30,18 +30,24 @@ class PageRank(BaseRanking):
         self.row = input_matrix.row
         self.col = input_matrix.col
         self.data = input_matrix.data
-        self.adjacency_init = input_matrix
 
         # Format
         n_row, n_col = input_matrix.shape
         if n_row != n_col:
             self.bipartite = True
             adjacency = bipartite2undirected(input_matrix)
+            self.adjacency_init = adjacency.copy()
+        else:
+            adjacency = input_matrix
 
         # Get seeds
         seeds_row = np.ones(n_row)
-        seeds_col = 0. * np.ones(n_col)
-        seeds = np.hstack((seeds_row, seeds_col))
+        if n_row != n_col:
+            seeds_col = 0. * np.ones(n_col)
+            seeds = np.hstack((seeds_row, seeds_col))
+        else:
+            seeds = seeds_row
+
         if seeds.sum() > 0:
             seeds /= seeds.sum()
 
@@ -55,17 +61,23 @@ class PageRank(BaseRanking):
         return self
 
     def update(self, input_matrix: sparse.coo_matrix):
+
+        prev_scores = self.scores_
+
         # update adjacency with new nodes
+        n_row, n_col = input_matrix.shape
+        if n_row != n_col:
+            input_matrix = bipartite2undirected(input_matrix)
+        
         adjacency_tot = add_edges(self.adjacency_init, input_matrix)
-
+        
         # Incremental PageRank
-
-        # Build sets Vu(nchanged) and Vc(hanged)
+        # Build sets v_u(nchanged) and v_c(hanged)
         nodes = set(self.row).union(set(self.col))
         next_nodes = set(input_matrix.row).union(set(input_matrix.col))
 
-        v_c = next_nodes - nodes
-        v_u = nodes
+        v_c = next_nodes.copy()
+        v_u = nodes - v_c
 
         # Step 1 - Iniitalize v_q
         v_q = set()
@@ -75,16 +87,17 @@ class PageRank(BaseRanking):
             n = v_c.pop()
             v_q.add(n)
 
-            for neigb in get_neighbors(adjacency_tot, n):
-                if neigb in v_u:
-                    v_u.discard(n)
-                    v_c.add(n)
+            #print(f'Adjacency shape : {adjacency_tot.shape} - n : {n}')
+            for neighb in get_neighbors(adjacency_tot, n):
+                if neighb in v_u:
+                    v_u.discard(neighb)
+                    v_c.add(neighb)
 
         # Step 3 - Scale elements in unchanged list v_u
         v_b = set()
 
         for n_u in v_u:
-            self.scores_[n_u] = self.scores_[n_u] * (len(v_u) / len(v_c))
+            prev_scores[n_u] = prev_scores[n_u] * (len(v_u) / len(next_nodes))
 
             for neighb_u in get_neighbors(adjacency_tot, n_u):
                 if neighb_u in v_q:
@@ -93,17 +106,33 @@ class PageRank(BaseRanking):
 
         # Step 4 - Scale border nodes + PageRank on changed nodes
         for n_b in v_b:
-            self.scores_[n_b] = self.scores_[n_b] * (len(v_u) / len(v_q))
+            prev_scores[n_b] = prev_scores[n_b] * (len(v_u) / len(v_q))
 
         #self.scores_ = self.fit(sparse.coo_matrix((self.data, (self.row, self.col))))
         # Changed nodes adjacency matrix
         n_c_all = np.array(list(v_q.union(v_b)))
-        row_c = adjacency_tot.row[n_c_all]
-        col_c = adjacency_tot.col[n_c_all]
-        data_c = adjacency_tot.data[n_c_all]
-        adjacency_c = sparse.coo_matrix((data_c, (row_c, col_c)))
+        
+        # remove edges from coo_matrix
+        adjacency_c = adjacency_tot.copy()
+        for i, j, d in zip(adjacency_tot.row, adjacency_tot.col, adjacency_tot.data):
+            if i in n_c_all:
+                mask = adjacency_c.row == i
+                adjacency_c.row = adjacency_c.row[mask]
+                adjacency_c.col = adjacency_c.col[mask]
+                adjacency_c.data = adjacency_c.data[mask]
+            elif j in n_c_all:
+                mask = adjacency_c.col == j
+                adjacency_c.col = adjacency_c.col[mask]
+                adjacency_c.row = adjacency_c.row[mask]
+                adjacency_c.data = adjacency_c.data[mask]
 
-        self.fit(adjacency_c, init_scores=self.scores_)
+        adjacency_c = sparse.coo_matrix((adjacency_c.data, (adjacency_c.row, adjacency_c.col)))
+        
+        self.fit(adjacency_c, init_scores=prev_scores)
+
+        # Update and save pagerank result for nodes that changed 
+        prev_scores[n_c_all] = self.scores_
+        self.scores_ = prev_scores
 
         return self
 
