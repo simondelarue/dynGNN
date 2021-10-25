@@ -15,17 +15,18 @@ if __name__=='__main__':
     global_path = '/home/infres/sdelarue/node-embedding/GNN/results'
 
     #datasets = ['SF2H', 'HighSchool', 'ia-contact']
-    datasets = ['ia-enron-employees']
-    methods = ['agg']
+    #datasets = ['ia-enron-employees']
+    datasets = ['SF2H']
+    methods = ['agg_simp']
     #methods = ['agg', 'temporal_edges', 'time_tensor']
-    step_predictions = ['single', 'multi']
+    #step_predictions = ['single', 'multi']
 
     for dataset in datasets:
         fig, ax = plt.subplots(1, 1, figsize=(12, 7))
 
         for method in methods:
             path = f'{dataset}/{method}'
-            files = [f for f in listdir(f'{global_path}/{path}') if (f.endswith('.pkl') and not f.startswith(f'{dataset}_GCN_GCN_lc'))]
+            files = [f for f in listdir(f'{global_path}/{path}') if (f.endswith('.pkl') and not f.startswith(f'{dataset}_GCN_lc'))]
 
             for f in files:
                 df_tmp = pd.read_pickle(f'{global_path}/{path}/{f}')

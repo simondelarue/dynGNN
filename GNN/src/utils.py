@@ -158,6 +158,17 @@ def compute_agg_features(g, timerange, add_self_edges=True):
     
     return norm_adj
 
+def compute_agg_features_simplified(g, timerange, add_self_edges=True):
+    
+    # Add edges between node and itself
+    if add_self_edges:
+        g.add_edges(g.nodes(), g.nodes())
+    
+    src, dest = g.edges()
+    adj = coo_matrix((np.ones(len(src)), (src.numpy(), dest.numpy())))
+    
+    return adj
+
 def negative_sampling(g, timerange, list_pos_edges):
 
     list_neg_edges = []
