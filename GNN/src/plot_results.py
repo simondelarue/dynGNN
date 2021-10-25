@@ -15,7 +15,7 @@ if __name__=='__main__':
     global_path = '/home/infres/sdelarue/node-embedding/GNN/results'
 
     #datasets = ['SF2H', 'HighSchool', 'ia-contact']
-    datasets = ['fb-forum']
+    datasets = ['ia-enron-employees']
     methods = ['agg']
     #methods = ['agg', 'temporal_edges', 'time_tensor']
     step_predictions = ['single', 'multi']
@@ -46,7 +46,7 @@ if __name__=='__main__':
                                 label=label)
 
         # Save results
-        filename = f"{dataset}_all_timesteps_dup_edges"
+        filename = f"{dataset}_testagg_graphsageLoss_dupedges"
         save_figures(fig, f'{global_path}', filename)
 
 
