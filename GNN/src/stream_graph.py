@@ -489,7 +489,7 @@ class StreamGraph():
         train_g = dgl.remove_edges(self.g, eids[train_nb_edge:])
 
         # Store timeranges
-        self.trange = np.arange(int(self.g.edata['timestamp'].min()), int(self.g.edata['timestamp'].max()) + 20, 20)
+        self.trange = np.arange(int(self.g.edata['timestamp'].min()), int(self.g.edata['timestamp'].max()) + timestep, timestep)
         self.trange_train = self.trange[self.trange < val_time]
         self.trange_val = self.trange[(self.trange >= val_time) & (self.trange < test_time)]
         self.trange_test = self.trange[self.trange >= test_time]
