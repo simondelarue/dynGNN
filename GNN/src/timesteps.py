@@ -1,5 +1,7 @@
 import dgl
 import random
+import torch
+import numpy as np
 
 def step_linkpred_preprocessing(g , timerange, negative_sampling: bool = True):
     ''' Cut down given temporal graph into subgraphs, according to timesteps. Performs negative sampling on each
@@ -22,15 +24,25 @@ def step_linkpred_preprocessing(g , timerange, negative_sampling: bool = True):
     val_pos_g_list = []
     val_neg_g_list = []
 
-    def edges_with_feature_t(edges):
+    def edges_with_feature_top(edges):
         # Whether an edge has a timestamp equals to t
-        return (edges.data['timestamp'] == val_t)
+        return (edges.data['timestamp'] <= val_t)
+    
+    def edges_with_feature_bottom(edges):
+        # Whether an edge has a timestamp equals to t
+        return (edges.data['timestamp'] > val_t_prev)
 
-    for t in timerange:
+    global val_t_prev 
+    val_t_prev = min(timerange)
+
+    for t in timerange[1:]:
         # -------- Positive edges ---------
         global val_t
         val_t = t
-        eids = g.filter_edges(edges_with_feature_t) # Filters edges for each timestep
+        eids_top = g.filter_edges(edges_with_feature_top) # Filters edges for each timestep
+        eids_bottom = g.filter_edges(edges_with_feature_bottom) # Filters edges for each timestep
+        eids = torch.from_numpy(np.array(list(set(eids_top.numpy()).intersection(set(eids_bottom.numpy())))).astype(np.int64))
+
         val_pos_g = dgl.edge_subgraph(g, eids, preserve_nodes=True)
         val_pos_g_list.append(val_pos_g)
         src_t, dest_t = val_pos_g.edges()
@@ -38,6 +50,8 @@ def step_linkpred_preprocessing(g , timerange, negative_sampling: bool = True):
         # -------- Negative edges ---------
         val_neg_g = step_linkpred_neg_sampling(src_t, dest_t, val_pos_g.number_of_nodes(), k=3)
         val_neg_g_list.append(val_neg_g)
+
+        val_t_prev = val_t
 
     return val_pos_g_list, val_neg_g_list
 
