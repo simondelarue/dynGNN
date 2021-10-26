@@ -1,4 +1,9 @@
-model,method,test_agg,duplicate_edges,predictor,loss_func,score
-GraphConv,agg_simp,True,True,dotProduct,BCEWithLogits,0.8586478312448523
-GraphSage,agg_simp,True,True,dotProduct,BCEWithLogits,0.8566922629101323
-GraphSage,temporal_edges,True,True,dotProduct,BCEWithLogits,0.5398646306609334
+,score,score,score,score,score
+method,agg,agg,agg_simp,agg_simp,temporal_edges
+model,GraphConv,GraphSage,GraphConv,GraphSage,GraphSage
+dataset,,,,,
+HighSchool,95.92,95.48,95.79,95.79,49.32
+SF2H,71.18,70.24,71.32,69.6,58.86
+ia-contact,89.67,90.91,89.99,91.82,65.06
+ia-contacts_hypertext2009,81.59,82.01,80.96,81.18,58.57
+ia-enron-employees,91.46,90.67,92.05,91.02,54.4
