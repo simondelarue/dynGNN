@@ -3,7 +3,7 @@ method,agg,agg,agg_simp,agg_simp,temporal_edges
 model,GraphConv,GraphSage,GraphConv,GraphSage,GraphSage
 dataset,,,,,
 HighSchool & 79.93 & 87.74 & 78.81 & 90.35 & 49.31 \\
-SF2H & 50.58 & 54.39 & 59.29 & 60.29 & 56.27 \\
+SF2H & 60.82 & 64.68 & 57.19 & 61.03 & 57.25 \\
 ia-contact & 85.76 & 90.98 & 85.32 & 89.91 & 50.82 \\
-ia-contacts_hypertext2009 & 71.86 & 68.87 & 69.43 & 68.18 & 48.69 \\
-ia-enron-employees & 91.18 & 89.02 & 91.65 & 88.5 & 50.07 \\
+ia-contacts-hypertext2009 & 71.86 & 68.87 & 69.43 & 68.18 & 48.69 \\
+ia-enron-employees & 91.35 & 84.8 & 91.37 & 88.53 & 50.64 \\

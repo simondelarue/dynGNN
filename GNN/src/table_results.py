@@ -14,7 +14,7 @@ if __name__=='__main__':
     global_path = '/home/infres/sdelarue/node-embedding/GNN/results'
 
     datasets = ['SF2H', 'HighSchool', 'ia-contact', 'ia-contacts_hypertext2009', 'ia-enron-employees']
-    methods = ['agg', 'agg_simp', 'temporal_edges']
+    methods = ['agg_simp', 'agg', 'temporal_edges']
     #step_predictions = ['single', 'multi']
 
     df = pd.DataFrame()
