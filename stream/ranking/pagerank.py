@@ -133,10 +133,41 @@ class PageRank(BaseRanking):
 
         return self
 
+    def update_naive(self, input_matrix: sparse.coo_matrix):
+        ''' Perform incremental PageRank ; update PageRank scores only for nodes that changed compared to previous step, 
+            i.e nodes on which new edge is attached. '''
+        
+        # Keep track of previous step scores
+        prev_scores = self.scores_
+
+        # update adjacency with new nodes
+        n_row, n_col = input_matrix.shape
+        if n_row != n_col:
+            input_matrix = bipartite2undirected(input_matrix)
+        
+        updated_adj = add_edges(self.adjacency, input_matrix)
+
+        # Select changed nodes
+        changed_adj = (updated_adj - self.adjacency).tocoo() # TODO How to consider weights in adjacency matrix ? 
+
+        # Compute PageRank scores on changed nodes
+        self.fit(changed_adj, init_scores=prev_scores)
+
+        # Update PageRank scores for changed nodes
+        idx_changed_nodes = np.array(list(set(np.nonzero(changed_adj)[0]).union(set(np.nonzero(changed_adj)[1]))))
+        print(f'Index changed nodes : {len(idx_changed_nodes)}')
+
+        prev_scores[idx_changed_nodes] = self.scores_[idx_changed_nodes]
+        self.scores_ = prev_scores
+
+        # Keep track of updated_adj adjacency
+        self.adjacency = updated_adj
+
+        return self
+
     def _get_pagerank(self, adjacency: sparse.coo_matrix, seeds: np.ndarray, damping_factor: float, n_iter: int, 
                       tol: float, solver: str = 'piteration', init_scores: np.ndarray = None) -> np.ndarray:
-        ''' PageRank solver. 
-            Source : https://asajadi.github.io/fast-pagerank/ '''
+        ''' PageRank solver '''
 
         n = adjacency.shape[0]
         

@@ -47,7 +47,7 @@ if __name__=='__main__':
     print(f'Adjacency shape : {graph.biadjacency.shape}')
 
     # Split data
-    adj_batches = split(graph.biadjacency, batch_size=1000)
+    adj_batches = split(graph.biadjacency, batch_size=10000)
     print(f'Number of batches : {len(adj_batches)}')
     '''for i in adj_batches:
         print(i.nnz)'''
@@ -90,21 +90,31 @@ if __name__=='__main__':
     '''
     static_pr = PageRank()
     static_scores = static_pr.fit_transform(graph.biadjacency)
-    print(f'\nStatic PR scores : {static_scores[:10]}')
+    
+    def top_k(scores, n):
+        return np.argpartition(scores, -n)[-n:]
+
+    print(f'\nStatic top PR nodes : {top_k(static_scores, 10)}')
+    print(f'\nStatic top PR scores : {sorted(static_scores, reverse=True)[:10]}')
 
     # Dynamic PageRank
     pagerank = PageRank()
     dyn_scores = []
     scores = pagerank.fit_transform(adj_batches[0])
     dyn_scores.append(scores)
-    print('\nInit increm scores : ', scores[:10])
+    print('\nInit increm nodes  : ', top_k(scores, 10))
+    print('\nInit increm scores : ', sorted(scores, reverse=True)[:10])
 
-    for idx, batch in enumerate(adj_batches[1:]):
+    for idx, batch in enumerate(adj_batches[1:100]):
         scores = pagerank.update_transform(batch)
         dyn_scores.append(scores)
-        print(f'\nIncremental scores batch {idx+1} : ', scores[:10])
+        #print(f'\nIncremental scores batch {idx+1} : ', [round(x, 4) for x in sorted(scores, reverse=True)[:10]])
     
-    print(f'\nDynamic PR scores : {dyn_scores[-1][:10]}')
+    print(f'\nDynamic PR nodes : {top_k(dyn_scores[-1], 10)}')
+    print(f'\nDynamic PR scores : {sorted(dyn_scores[-1], reverse=True)[:10]}')
+
+    nb_found_n = len(set(top_k(dyn_scores[-1], 100)).intersection(set(top_k(static_scores, 100))))
+    print(f'\nPercentage of nodes found in top 100 (not considering position) : {nb_found_n}')
 
 
 
