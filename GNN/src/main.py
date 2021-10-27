@@ -218,7 +218,7 @@ def run(data, val_size, test_size, cache, batch_size, feat_struct, step_predicti
         elif test_agg == 'False':
             # Step evaluation dataset
             for val_pos_g, val_neg_g, t in zip(val_pos_g_list, val_neg_g_list, sg.trange_val):
-                if val_pos_g.number_of_edges() > 0 and val_neg_g.number_of_edges() > 0:
+                if val_pos_g.number_of_edges() > 0 and val_neg_g.number_of_edges() > 0 and t != 0:
                     history_score, val_pos_score, val_neg_score = trained_model.test(pred, 
                                                                         val_pos_g, 
                                                                         val_neg_g, 
@@ -334,7 +334,7 @@ if __name__=='__main__':
     STEP_PREDICTION = args.step_prediction
     NORM = args.normalized
     METRIC = args.metric
-    DEVICE = torch.device("cuda:2" if torch.cuda.is_available() else "cpu")
+    DEVICE = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
     DUP_EDGES = args.duplicate_edges
     TEST_AGG = args.test_agg
     PREDICTOR = args.predictor
