@@ -6,7 +6,7 @@ from scipy import sparse
 
 from stream.utils import edgelist2adjacency
 from stream.data import load_data, split
-from stream.ranking import PageRank, pagerank
+from stream.ranking import PageRank, top_k, MRR
 
 #import sknetwork as skn
 #from sknetwork.data import movie_actor
@@ -90,31 +90,49 @@ if __name__=='__main__':
     '''
     static_pr = PageRank()
     static_scores = static_pr.fit_transform(graph.biadjacency)
-    
-    def top_k(scores, n):
-        return np.argpartition(scores, -n)[-n:]
+    static_scores_row = static_pr.scores_row_
+    static_scores_col = static_pr.scores_col_
 
-    print(f'\nStatic top PR nodes : {top_k(static_scores, 10)}')
-    print(f'\nStatic top PR scores : {sorted(static_scores, reverse=True)[:10]}')
+    print(f'\nStatic top PR nodes row : {top_k(static_scores_row, 10)}')
+    print(f'Static top PR scores row : {np.round(sorted(static_scores_row, reverse=True)[:10], 4)}')
+    print(f'Static top PR nodes col : {top_k(static_scores_col, 10)}')
+    print(f'Static top PR scores col : {np.round(sorted(static_scores_col, reverse=True)[:10], 4)}')
 
     # Dynamic PageRank
     pagerank = PageRank()
-    dyn_scores = []
+    dyn_scores_row, dyn_scores_col = [], []
     scores = pagerank.fit_transform(adj_batches[0])
-    dyn_scores.append(scores)
-    print('\nInit increm nodes  : ', top_k(scores, 10))
-    print('\nInit increm scores : ', sorted(scores, reverse=True)[:10])
+    scores_row = pagerank.scores_row_
+    scores_col = pagerank.scores_col_
+    dyn_scores_row.append(scores_row)
+    dyn_scores_col.append(scores_col)
+    print('\nInit increm nodes row  : ', top_k(scores_row, 10))
+    print('Init increm scores row : ', sorted(np.round(scores_row, 4), reverse=True)[:10])
+    print('Init increm nodes col  : ', top_k(scores_col, 10))
+    print('Init increm scores col : ', sorted(np.round(scores_col, 4), reverse=True)[:10])
 
-    for idx, batch in enumerate(adj_batches[1:100]):
+    for idx, batch in enumerate(adj_batches[1:]):
         scores = pagerank.update_transform(batch)
-        dyn_scores.append(scores)
+        scores_row = pagerank.scores_row_
+        scores_col = pagerank.scores_col_
+        dyn_scores_row.append(scores_row)
+        dyn_scores_col.append(scores_col)
         #print(f'\nIncremental scores batch {idx+1} : ', [round(x, 4) for x in sorted(scores, reverse=True)[:10]])
     
-    print(f'\nDynamic PR nodes : {top_k(dyn_scores[-1], 10)}')
-    print(f'\nDynamic PR scores : {sorted(dyn_scores[-1], reverse=True)[:10]}')
+    print('\nFinal increm nodes row  : ', top_k(dyn_scores_row[-1], 10))
+    print('nFinal increm scores row : ', sorted(np.round(dyn_scores_row[-1], 4), reverse=True)[:10])
+    print('nFinal increm nodes col  : ', top_k(dyn_scores_col[-1], 10))
+    print('nFinal increm scores col : ', sorted(np.round(dyn_scores_col[-1], 4), reverse=True)[:10])
 
-    nb_found_n = len(set(top_k(dyn_scores[-1], 100)).intersection(set(top_k(static_scores, 100))))
-    print(f'\nPercentage of nodes found in top 100 (not considering position) : {nb_found_n}')
+    nb_found_n_row = len(set(top_k(dyn_scores_row[-1], 100)).intersection(set(top_k(static_scores_row, 100))))
+    print(f'\nPercentage of nodes row found in top 100 (not considering position) : {nb_found_n_row}')
+    nb_found_n_col = len(set(top_k(dyn_scores_col[-1], 100)).intersection(set(top_k(static_scores_col, 100))))
+    print(f'Percentage of nodes row found in top 100 (not considering position) : {nb_found_n_col}')
+
+    # Computes Mean Reciprocal Rank
+    mrr_row = MRR(static_scores_row, dyn_scores_row[-1], k=5)
+    mrr_col = MRR(static_scores_col, dyn_scores_col[-1], k=5)
+    print(f'Mean Reciprocal Rank for rows and cols : {mrr_row:.3f} - {mrr_col:.3f}')
 
 
 
