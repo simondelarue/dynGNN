@@ -44,20 +44,24 @@ def MRR(y_true: np.ndarray, y_pred: np.ndarray, k: int = 10, weight: bool = True
             Mean Reciprocal Score. '''
 
     top_node_true = top_k(y_true, k)
-    print(f'TOP NODE TRUE : {top_node_true}')
     node_pred = top_k(y_pred, len(y_pred))
     
     # Find reciprocal predicted ranks for top k elements in ground truth
     top_rank_pred = np.array([])
     for rank, node in enumerate(node_pred):
         if node in (top_node_true):
-            recip_rank = 1 / (rank + 1)
+            '''recip_rank = 1 / (rank + 1)
             if weight:
-                rank_true = [i for i, val in enumerate(top_node_true) if val == node][0]
+                #rank_true = [i for i, val in enumerate(top_node_true) if val == node][0]
+                rank_true = np.where([top_node_true == node])[1]
                 weight = (k - rank_true) / k
-                top_rank_pred = np.append(top_rank_pred, recip_rank * (1 / weight))
+                top_rank_pred = np.append(top_rank_pred, recip_rank * weight)
             else:
-                top_rank_pred = np.append(top_rank_pred, recip_rank)
+                top_rank_pred = np.append(top_rank_pred, recip_rank)'''
+            rank_true = [i for i, val in enumerate(top_node_true) if val == node][0]
+            rank_true = np.where([top_node_true == node])[1]
+            recip_rank = 1 / (np.abs(rank - rank_true) + 1)
+            top_rank_pred = np.append(top_rank_pred, recip_rank)
 
     # Compute MRR
     mrr = np.mean(top_rank_pred)
