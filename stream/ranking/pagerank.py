@@ -138,7 +138,7 @@ class PageRank(BaseRanking):
             i.e nodes on which new edge is attached. '''
         
         # Keep track of previous step scores
-        prev_scores = self.scores_
+        prev_scores = self.scores_.copy()
 
         # update adjacency with new nodes
         if self.bipartite:
@@ -172,7 +172,7 @@ class PageRank(BaseRanking):
         #print(f'Index changed nodes : {len(idx_changed_nodes)}')
 
         prev_scores[idx_changed_nodes] = scores[idx_changed_nodes]
-        self.scores_ = prev_scores
+        self.scores_ = prev_scores.copy()
 
         # Keep track of updated_adj adjacency
         self.adjacency = updated_adjacency
