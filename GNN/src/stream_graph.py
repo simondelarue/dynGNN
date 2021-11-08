@@ -288,6 +288,29 @@ class StreamGraph():
                 for node in self.train_pos_g.nodes():
                     adj[node, node, :] = torch.ones(len(train_trange_idx))
 
+        elif feat_struct=='DTFT':
+
+            # Build training adjacency 3d-tensor
+            max_train_t = int(self.train_pos_g.edata['timestamp'].max())
+            df_train = self.data_df[self.data_df['t']<=max_train_t]
+            train_trange = list(np.arange(int(self.train_pos_g.edata['timestamp'].min()), int(self.train_pos_g.edata['timestamp'].max()) + timestep, timestep))
+            train_trange_idx = [i for i in range(len(train_trange))]
+            adj = torch.zeros(self.train_pos_g.number_of_nodes(), self.train_pos_g.number_of_nodes(), len(train_trange_idx))
+
+            # Fill 3d-tensor with 1 if edge between u and v at time t exists
+            for node_src, node_dest, t in zip(df_train['src'], df_train['dest'], df_train['t']):
+                t_index = train_trange.index(t)
+                adj[node_src, node_dest, t_index] = 1
+
+            N = len(train_trange_idx)
+            fourier_feat = torch.zeros(self.train_pos_g.number_of_nodes(), self.train_pos_g.number_of_nodes(), N)
+            for node_src in range(adj.shape[0]):
+                for node_dest in range(adj.shape[1]):            
+                    X_temp = np.fft.fft(adj[node_src, node_dest, :], N)
+                    fourier_feat[node_src, node_dest, :] = torch.from_numpy(np.abs(X_temp))
+            
+            adj = fourier_feat.clone()
+
         elif feat_struct=='agg':
 
             if self.batches:

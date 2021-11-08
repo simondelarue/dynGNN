@@ -75,6 +75,9 @@ def run(data, val_size, test_size, cache, batch_size, feat_struct, step_predicti
     if model_name == 'GCNTime':
         model = GCNModelTime(sg.train_g.ndata['feat'].shape[0], emb_size, sg.train_g.ndata['feat'].shape[2]).to(device)
         models = [model]
+    elif model_name == 'DTFT':
+        model = GCNModelTime(sg.train_g.ndata['feat'].shape[0], emb_size, sg.train_g.ndata['feat'].shape[2]).to(device)
+        models = [model]
     elif model_name == 'GraphConv':
         model = GCNGraphConv(sg.train_g.ndata['feat'].shape[0], emb_size).to(device)
         models = [model]
@@ -260,41 +263,6 @@ def run(data, val_size, test_size, cache, batch_size, feat_struct, step_predicti
     print(f'Results saved in {res_path}/{res_filename}.pkl')
     print(df_tot.shape)
 
-    
-    # Save results
-    '''res_path = f'{result_path}/{data}/{feat_struct}'
-    if feat_struct == 'temporal_edges':
-        res_filename = f'{data}_GCN_{model_name}_{feat_struct}_unseen_eval_{metric}_{step_prediction}'
-    else:
-        res_filename = f'{data}_GCN_{model_name}_{feat_struct}_unseen_eval_{metric}'
-
-    save_figures(fig, res_path, res_filename)'''
-    
-    # Test
-    '''print('\n GCN test ...')
-    history_score, test_pos_score, test_neg_score = model.test(pred, sg.test_pos_g, sg.test_neg_g, metric=metric, return_all=True)
-    print(f'Done !')
-    print_result(history_score, metric)
-    # Plot Results
-    hist_train_loss = [float(x) for x in model.history_train_['train_loss']]
-    fig, ax = plt.subplots(1, 2, figsize=(12, 7))
-    plot_history_loss(hist_train_loss, ax=ax[0], label=f'{model_name}')
-    ax[0].set_xlabel('epochs')
-    plot_result(history_score, ax=ax[1], title='Test set - unseen nodes', label=f'{model_name}', metric=metric)
-    fig.savefig(f'{result_path}/{data}_GCN_{model_name}_unseen_test_{metric}.png')
-
-    print('\n GCN test seen ...')
-    history_score, test_pos_score, test_neg_score = model.test(pred, sg.test_pos_seen_g, sg.test_neg_seen_g, metric=metric, return_all=True)
-    print(f'Done !')
-    print_result(history_score, metric)
-    # Plot Results
-    fig, ax = plt.subplots(1, 2, figsize=(12, 7))
-    plot_history_loss(hist_train_loss, ax=ax[0], label=f'{model_name}')
-    ax[0].set_xlabel('epochs')
-    plot_result(history_score, ax=ax[1], title='Test set - unseen nodes', label=f'{model_name}', metric=metric)
-    fig.savefig(f'{result_path}/{data}_GCN_{model_name}_seen_test_{metric}.png')'''
-
-
 if __name__=='__main__':
 
     LOG_PATH = f'{os.getcwd()}/logs'
@@ -343,8 +311,8 @@ if __name__=='__main__':
     print(f'Device : {DEVICE}')
     
     # ------ Sanity check ------
-    if MODEL=='GCNTime' and FEAT_STRUCT!='time_tensor':
-        raise Exception("'GCNTime' model should only be filled with 'time_tensor' value for feature structure parameter.")
+    #if MODEL=='GCNTime' and FEAT_STRUCT!='time_tensor':
+    #    raise Exception("'GCNTime' model should only be filled with 'time_tensor' value for feature structure parameter.")
 
     # ------ Run model ------
     run(args.data,
