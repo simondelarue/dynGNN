@@ -1,9 +1,7 @@
-,score,score,score,score,score
-method,agg,agg,agg_simp,agg_simp,temporal_edges
-model,GraphConv,GraphSage,GraphConv,GraphSage,GraphSage
-dataset,,,,,
-HighSchool & 74.25 & 85.62 & 50.0 & 82.85 & 48.48 \\
-SF2H & 57.07 & 57.83 & 51.41 & 55.0 & 56.38 \\
-ia-contact & 35.02 & 41.68 & 35.13 & 42.37 & 38.0 \\
-ia-contacts-hypertext2009 & 71.54 & 68.1 & 75.13 & 73.04 & 62.59 \\
-ia-enron-employees & 18.63 & 11.11 & 20.51 & 18.43 & 15.02 \\
+,score,score,score,score,score,score,score
+method,DTFT,agg,agg,agg_simp,agg_simp,temporal_edges,time_tensor
+model,GCNTime,GraphConv,GraphSage,GraphConv,GraphSage,GraphSage,GCNTime
+dataset,,,,,,,
+HighSchool,69.67,74.25,85.62,50.0,82.85,48.48,83.73
+SF2H,51.6,57.07,57.83,51.41,55.0,56.38,52.21
+ia-contacts_hypertext2009,50.12,71.54,68.1,75.13,73.04,62.59,51.69
