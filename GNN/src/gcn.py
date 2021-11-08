@@ -92,7 +92,7 @@ class GCNModel(nn.Module):
         self.embedding_ = h
         self.history_train_ = history
         
-    def test(self, predictor, test_pos_g, test_neg_g, metric, feat_struct, step_prediction=None, k_indexes=None, return_all=True):
+    def test(self, predictor, test_pos_g, test_neg_g, metric, feat_struct, step_prediction='single', k_indexes=None, return_all=True):
 
         history = {} # useful for plots
         embedding = self.embedding_

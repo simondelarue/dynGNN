@@ -19,7 +19,7 @@ from data_loader import DataLoader
 from stream_graph import StreamGraph
 
 def run(data, val_size, test_size, cache, batch_size, feat_struct, step_prediction, timestep, norm, emb_size, model_name, \
-        epochs, lr, metric, device, result_path, dup_edges, test_agg):
+        epochs, lr, metric, device, result_path, dup_edges, test_agg, predictor, loss_func):
 
     # ------ Load Data & preprocessing ------
     dl = DataLoader(data)
@@ -48,12 +48,12 @@ def run(data, val_size, test_size, cache, batch_size, feat_struct, step_predicti
     
     # ------ Create batches ------
     if batch_size != 0:
-        sg.create_batches(batch_size)
+        sg.create_batches(batch_size, timestep)
         
     # ------ Compute features ------
     # Features are computed accordingly to data structure and/or model.
     start = time.time()
-    sg.compute_features(feat_struct, add_self_edges=True, normalized=norm)
+    sg.compute_features(feat_struct, add_self_edges=True, normalized=norm, timestep=timestep)
     end = time.time()
     print(f'Elapsed time : {end-start}s')
     
@@ -75,6 +75,9 @@ def run(data, val_size, test_size, cache, batch_size, feat_struct, step_predicti
     if model_name == 'GCNTime':
         model = GCNModelTime(sg.train_g.ndata['feat'].shape[0], emb_size, sg.train_g.ndata['feat'].shape[2]).to(device)
         models = [model]
+    elif model_name == 'DTFT':
+        model = GCNModelTime(sg.train_g.ndata['feat'].shape[0], emb_size, sg.train_g.ndata['feat'].shape[2]).to(device)
+        models = [model]
     elif model_name == 'GraphConv':
         model = GCNGraphConv(sg.train_g.ndata['feat'].shape[0], emb_size).to(device)
         models = [model]
@@ -88,12 +91,16 @@ def run(data, val_size, test_size, cache, batch_size, feat_struct, step_predicti
         models = [model_N, model_NN, model_full]
 
     # Predictor
-    pred = DotPredictor()
-    #pred = CosinePredictor()
+    if predictor == 'dotProduct':
+        pred = DotPredictor()
+    elif predictor == 'cosine':
+        pred = CosinePredictor()
 
     # Loss
-    loss = compute_loss
-    #loss = graphSage_loss
+    if loss_func == 'BCEWithLogits':
+        loss = compute_loss
+    elif loss_func == 'graphSage':
+        loss = graphSage_loss
 
     # Train model
     kwargs = {'train_pos_g': sg.train_pos_g, 'train_neg_g': sg.train_neg_g}
@@ -205,14 +212,16 @@ def run(data, val_size, test_size, cache, batch_size, feat_struct, step_predicti
             else:
                 label = f'{model_name}'
 
-            df_tmp = pd.DataFrame([[label, history_score['test_auc'], 0, sg.val_pos_g.number_of_edges(), sg.val_neg_g.number_of_edges(), test_agg]], 
-                                    columns=['model', 'score', 'timestep', 'number_of_edges_pos', 'number_of_edges_neg', 'test_agg'])
+            df_tmp = pd.DataFrame([[label, history_score['test_auc'], 0, sg.val_pos_g.number_of_edges(), sg.val_neg_g.number_of_edges(), test_agg, \
+                                    dup_edges, predictor, loss_func]], 
+                                    columns=['model', 'score', 'timestep', 'number_of_edges_pos', 'number_of_edges_neg', 'test_agg', \
+                                            'duplicate_edges', 'predictor', 'loss_func'])
             df_tot = pd.concat([df_tot, df_tmp])
 
         elif test_agg == 'False':
             # Step evaluation dataset
             for val_pos_g, val_neg_g, t in zip(val_pos_g_list, val_neg_g_list, sg.trange_val):
-                if val_pos_g.number_of_edges() > 0 and val_neg_g.number_of_edges() > 0:
+                if val_pos_g.number_of_edges() > 0 and val_neg_g.number_of_edges() > 0 and t != 0:
                     history_score, val_pos_score, val_neg_score = trained_model.test(pred, 
                                                                         val_pos_g, 
                                                                         val_neg_g, 
@@ -231,8 +240,10 @@ def run(data, val_size, test_size, cache, batch_size, feat_struct, step_predicti
                     else:
                         label = f'{model_name}'
 
-                    df_tmp = pd.DataFrame([[label, history_score['test_auc'], t, val_pos_g.number_of_edges(), val_neg_g.number_of_edges(), test_agg]], 
-                                            columns=['model', 'score', 'timestep', 'number_of_edges_pos', 'number_of_edges_neg', 'test_agg'])
+                    df_tmp = pd.DataFrame([[label, history_score['test_auc'], t, val_pos_g.number_of_edges(), val_neg_g.number_of_edges(), test_agg, \
+                                            dup_edges, predictor, loss_func]], 
+                                            columns=['model', 'score', 'timestep', 'number_of_edges_pos', 'number_of_edges_neg', 'test_agg', \
+                                            'duplicate_edges', 'predictor', 'loss_func'])
                     df_tot = pd.concat([df_tot, df_tmp])
 
                     #plot_history_loss(hist_train_loss, ax=ax[0], label=label)
@@ -244,48 +255,13 @@ def run(data, val_size, test_size, cache, batch_size, feat_struct, step_predicti
     # Save results
     res_path = f'{result_path}/{data}/{feat_struct}'
     if feat_struct == 'temporal_edges':
-        res_filename = f'{data}_GCN_{model_name}_{feat_struct}_eval_{metric}_{step_prediction}'
+        res_filename = f'{data}_{model_name}_{feat_struct}_{metric}_{test_agg}_{dup_edges}_{predictor}_{loss_func}_{step_prediction}'
     else:
-        res_filename = f'{data}_GCN_{model_name}_{feat_struct}_eval_{metric}'
+        res_filename = f'{data}_{model_name}_{feat_struct}_{metric}_{test_agg}_{dup_edges}_{predictor}_{loss_func}'
 
     df_tot.to_pickle(f'{res_path}/{res_filename}.pkl', protocol=3)
     print(f'Results saved in {res_path}/{res_filename}.pkl')
     print(df_tot.shape)
-
-    
-    # Save results
-    '''res_path = f'{result_path}/{data}/{feat_struct}'
-    if feat_struct == 'temporal_edges':
-        res_filename = f'{data}_GCN_{model_name}_{feat_struct}_unseen_eval_{metric}_{step_prediction}'
-    else:
-        res_filename = f'{data}_GCN_{model_name}_{feat_struct}_unseen_eval_{metric}'
-
-    save_figures(fig, res_path, res_filename)'''
-    
-    # Test
-    '''print('\n GCN test ...')
-    history_score, test_pos_score, test_neg_score = model.test(pred, sg.test_pos_g, sg.test_neg_g, metric=metric, return_all=True)
-    print(f'Done !')
-    print_result(history_score, metric)
-    # Plot Results
-    hist_train_loss = [float(x) for x in model.history_train_['train_loss']]
-    fig, ax = plt.subplots(1, 2, figsize=(12, 7))
-    plot_history_loss(hist_train_loss, ax=ax[0], label=f'{model_name}')
-    ax[0].set_xlabel('epochs')
-    plot_result(history_score, ax=ax[1], title='Test set - unseen nodes', label=f'{model_name}', metric=metric)
-    fig.savefig(f'{result_path}/{data}_GCN_{model_name}_unseen_test_{metric}.png')
-
-    print('\n GCN test seen ...')
-    history_score, test_pos_score, test_neg_score = model.test(pred, sg.test_pos_seen_g, sg.test_neg_seen_g, metric=metric, return_all=True)
-    print(f'Done !')
-    print_result(history_score, metric)
-    # Plot Results
-    fig, ax = plt.subplots(1, 2, figsize=(12, 7))
-    plot_history_loss(hist_train_loss, ax=ax[0], label=f'{model_name}')
-    ax[0].set_xlabel('epochs')
-    plot_result(history_score, ax=ax[1], title='Test set - unseen nodes', label=f'{model_name}', metric=metric)
-    fig.savefig(f'{result_path}/{data}_GCN_{model_name}_seen_test_{metric}.png')'''
-
 
 if __name__=='__main__':
 
@@ -296,8 +272,8 @@ if __name__=='__main__':
     parser = argparse.ArgumentParser('Preprocessing data')
     parser.add_argument('--data', type=str, help='Dataset name : \{SF2H\}', default='SF2H')
     parser.add_argument('--cache', type=str, help='Path for splitted graphs already cached', default=None)
-    parser.add_argument('--feat_struct', type=str, help='Data structure : \{agg, time_tensor, temporal_edges\}', default='time_tensor')
-    parser.add_argument('--step_prediction', type=str, help="If data structure is 'temporal_edges', either 'single' or 'multi' step predictions can be used.", default=None)
+    parser.add_argument('--feat_struct', type=str, help='Data structure : \{agg, agg_simp, time_tensor, temporal_edges\}', default='time_tensor')
+    parser.add_argument('--step_prediction', type=str, help="If data structure is 'temporal_edges', either 'single' or 'multi' step predictions can be used.", default='single')
     parser.add_argument('--normalized', type=bool, help='If true, normalized adjacency is used', default=True)
     parser.add_argument('--model', type=str, help='GCN model : \{GraphConv, GraphSage, GCNTime\}', default='GraphConv')
     parser.add_argument('--batch_size', type=int, help='If batch_size > 0, stream graph is splitted into batches.', default=0)
@@ -308,6 +284,8 @@ if __name__=='__main__':
     parser.add_argument('--metric', type=str, help='Evaluation metric : \{auc, f1_score, classification_report\}', default='auc')
     parser.add_argument('--duplicate_edges', type=str, help='If true, allows duplicate edges in training graphs', default='True')
     parser.add_argument('--test_agg', type=str, help='If true, predictions are performed on a static graph test.', default='True')
+    parser.add_argument('--predictor', type=str, help='\{dotProduct, cosine\}', default='dotProduct')
+    parser.add_argument('--loss_func', type=str, help='\{BCEWithLogits, graphSage\}', default='BCEWithLogits')
     args = parser.parse_args()
 
     # ------ Parameters ------
@@ -324,15 +302,17 @@ if __name__=='__main__':
     STEP_PREDICTION = args.step_prediction
     NORM = args.normalized
     METRIC = args.metric
-    DEVICE = torch.device("cuda:2" if torch.cuda.is_available() else "cpu")
+    DEVICE = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
     DUP_EDGES = args.duplicate_edges
     TEST_AGG = args.test_agg
+    PREDICTOR = args.predictor
+    LOSS_FUNC = args.loss_func
 
     print(f'Device : {DEVICE}')
     
     # ------ Sanity check ------
-    if MODEL=='GCNTime' and FEAT_STRUCT!='time_tensor':
-        raise Exception("'GCNTime' model should only be filled with 'time_tensor' value for feature structure parameter.")
+    #if MODEL=='GCNTime' and FEAT_STRUCT!='time_tensor':
+    #    raise Exception("'GCNTime' model should only be filled with 'time_tensor' value for feature structure parameter.")
 
     # ------ Run model ------
     run(args.data,
@@ -352,5 +332,7 @@ if __name__=='__main__':
         DEVICE,
         RESULT_PATH,
         DUP_EDGES,
-        TEST_AGG)
+        TEST_AGG,
+        PREDICTOR,
+        LOSS_FUNC)
 

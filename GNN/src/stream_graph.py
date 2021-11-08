@@ -184,10 +184,38 @@ class StreamGraph():
 
         # Build graphs from COO adjacency matrix
         coo_m = coo_matrix((data, (rows, cols)))
-        #print(f'coo m :{coo_m.shape}')
-        g_pdag = dgl.from_scipy(coo_m)
+
+        # Ensure that rows and cols have the same max
+        max_rows_neg = max(rows_neg)
+        max_cols_neg = max(cols_neg)
+        if max_rows_neg > max_cols_neg:
+            rows_neg = np.append(rows_neg, max_cols_neg)
+            cols_neg = np.append(cols_neg, max_cols_neg)
+            data_neg = np.append(data_neg, 1)
+        else:
+            cols_neg = np.append(cols_neg, max_rows_neg)
+            rows_neg = np.append(rows_neg, max_cols_neg)
+            data_neg = np.append(data_neg, 1)
         coo_m_neg = coo_matrix((data_neg, (rows_neg, cols_neg)))
-        #print(f'coo m neg :{coo_m_neg.shape}')
+
+        # Ensure that pos and neg have the same max
+        max_pos = max(max(rows), max(cols))
+        max_neg = max(max(rows_neg), max(cols_neg))
+        if max_pos > max_neg:
+            rows_neg = np.append(rows_neg, max_pos)
+            cols_neg = np.append(cols_neg, max_pos)
+            data_neg = np.append(data_neg, 1)
+            coo_m_neg = coo_matrix((data_neg, (rows_neg, cols_neg)))
+        else:
+            rows = np.append(rows, max_neg)
+            cols = np.append(cols, max_neg)
+            data = np.append(data, 1)
+            coo_m = coo_matrix((data, (rows, cols)))
+
+        print('coo pos shape : ', coo_m.shape)
+        print('coo neg shape : ', coo_m_neg.shape)
+        
+        g_pdag = dgl.from_scipy(coo_m)
         g_pdag_neg = dgl.from_scipy(coo_m_neg)
 
         print(f'    Ratio #negative edges / #positive edges : {len(rows_neg)/len(rows):.4f}')
@@ -210,7 +238,7 @@ class StreamGraph():
         #    self.test_pos_seen_g = self.__add_temporal_edges_graph(self.test_pos_seen_g, self.trange_test)
 
 
-    def compute_features(self, feat_struct: str, add_self_edges=True, normalized=True):
+    def compute_features(self, feat_struct: str, add_self_edges=True, normalized=True, timestep=20):
         ''' Attach features to existing graph(s). Features are computed from adjacency matrix of the graph.
         
             Parameters
@@ -246,7 +274,7 @@ class StreamGraph():
             # Build training adjacency 3d-tensor
             max_train_t = int(self.train_pos_g.edata['timestamp'].max())
             df_train = self.data_df[self.data_df['t']<=max_train_t]
-            train_trange = list(np.arange(int(self.train_pos_g.edata['timestamp'].min()), int(self.train_pos_g.edata['timestamp'].max()) + 20, 20))
+            train_trange = list(np.arange(int(self.train_pos_g.edata['timestamp'].min()), int(self.train_pos_g.edata['timestamp'].max()) + timestep, timestep))
             train_trange_idx = [i for i in range(len(train_trange))]
             adj = torch.zeros(self.train_pos_g.number_of_nodes(), self.train_pos_g.number_of_nodes(), len(train_trange_idx))
 
@@ -260,13 +288,36 @@ class StreamGraph():
                 for node in self.train_pos_g.nodes():
                     adj[node, node, :] = torch.ones(len(train_trange_idx))
 
+        elif feat_struct=='DTFT':
+
+            # Build training adjacency 3d-tensor
+            max_train_t = int(self.train_pos_g.edata['timestamp'].max())
+            df_train = self.data_df[self.data_df['t']<=max_train_t]
+            train_trange = list(np.arange(int(self.train_pos_g.edata['timestamp'].min()), int(self.train_pos_g.edata['timestamp'].max()) + timestep, timestep))
+            train_trange_idx = [i for i in range(len(train_trange))]
+            adj = torch.zeros(self.train_pos_g.number_of_nodes(), self.train_pos_g.number_of_nodes(), len(train_trange_idx))
+
+            # Fill 3d-tensor with 1 if edge between u and v at time t exists
+            for node_src, node_dest, t in zip(df_train['src'], df_train['dest'], df_train['t']):
+                t_index = train_trange.index(t)
+                adj[node_src, node_dest, t_index] = 1
+
+            N = len(train_trange_idx)
+            fourier_feat = torch.zeros(self.train_pos_g.number_of_nodes(), self.train_pos_g.number_of_nodes(), N)
+            for node_src in range(adj.shape[0]):
+                for node_dest in range(adj.shape[1]):            
+                    X_temp = np.fft.fft(adj[node_src, node_dest, :], N)
+                    fourier_feat[node_src, node_dest, :] = torch.from_numpy(np.abs(X_temp))
+            
+            adj = fourier_feat.clone()
+
         elif feat_struct=='agg':
 
             if self.batches:
 
                 # Positive batches
                 for train_batch_g in self.train_pos_batches:
-                    train_batch_timerange = np.arange(int(train_batch_g.edata['timestamp'].min()), int(train_batch_g.edata['timestamp'].max()) + 20, 20)
+                    train_batch_timerange = np.arange(int(train_batch_g.edata['timestamp'].min()), int(train_batch_g.edata['timestamp'].max()) + timestep, timestep)
                     # Compute features 
                     if train_batch_timerange[0] != 0:
                         train_batch_feat = compute_agg_features(train_batch_g, train_batch_timerange, add_self_edges=add_self_edges) 
@@ -276,10 +327,42 @@ class StreamGraph():
                             train_batch_g.ndata['feat'] = train_batch_feat
                 # Negative batches
                 for train_neg_batch_g in self.train_neg_batches:
-                    train_batch_timerange = np.arange(int(train_neg_batch_g.edata['timestamp'].min()), int(train_neg_batch_g.edata['timestamp'].max()) + 20, 20)
+                    train_batch_timerange = np.arange(int(train_neg_batch_g.edata['timestamp'].min()), int(train_neg_batch_g.edata['timestamp'].max()) + timestep, timestep)
                     # Compute features 
                     if train_batch_timerange[0] != 0:
                         train_neg_batch_feat = compute_agg_features(train_neg_batch_g, train_batch_timerange, add_self_edges=add_self_edges) 
+                        if normalized:
+                            train_neg_batch_g.ndata['feat'] = normalize_adj(train_neg_batch_feat)
+                        else:
+                            train_neg_batch_g.ndata['feat'] = train_neg_batch_feat
+            
+            else:
+                adj = compute_agg_features(self.train_pos_g, self.trange_train, add_self_edges=add_self_edges)
+            
+                # Normalize adjacency
+                if normalized:
+                    adj = normalize_adj(adj)
+
+        elif feat_struct=='agg_simp':
+
+            if self.batches:
+
+                # Positive batches
+                for train_batch_g in self.train_pos_batches:
+                    train_batch_timerange = np.arange(int(train_batch_g.edata['timestamp'].min()), int(train_batch_g.edata['timestamp'].max()) + timestep, timestep)
+                    # Compute features 
+                    if train_batch_timerange[0] != 0:
+                        train_batch_feat = compute_agg_features_simplified(train_batch_g, train_batch_timerange, add_self_edges=add_self_edges) 
+                        if normalized:
+                            train_batch_g.ndata['feat'] = normalize_adj(train_batch_feat)
+                        else:
+                            train_batch_g.ndata['feat'] = train_batch_feat
+                # Negative batches
+                for train_neg_batch_g in self.train_neg_batches:
+                    train_batch_timerange = np.arange(int(train_neg_batch_g.edata['timestamp'].min()), int(train_neg_batch_g.edata['timestamp'].max()) + timestep, timestep)
+                    # Compute features 
+                    if train_batch_timerange[0] != 0:
+                        train_neg_batch_feat = compute_agg_features_simplified(train_neg_batch_g, train_batch_timerange, add_self_edges=add_self_edges) 
                         if normalized:
                             train_neg_batch_g.ndata['feat'] = normalize_adj(train_neg_batch_feat)
                         else:
@@ -429,7 +512,7 @@ class StreamGraph():
         train_g = dgl.remove_edges(self.g, eids[train_nb_edge:])
 
         # Store timeranges
-        self.trange = np.arange(int(self.g.edata['timestamp'].min()), int(self.g.edata['timestamp'].max()) + 20, 20)
+        self.trange = np.arange(int(self.g.edata['timestamp'].min()), int(self.g.edata['timestamp'].max()) + timestep, timestep)
         self.trange_train = self.trange[self.trange < val_time]
         self.trange_val = self.trange[(self.trange >= val_time) & (self.trange < test_time)]
         self.trange_test = self.trange[self.trange >= test_time]

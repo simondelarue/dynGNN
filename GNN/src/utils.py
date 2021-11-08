@@ -1,11 +1,13 @@
 # -*- coding: utf-8 -*-
 import numpy as np
+import pandas as pd
 import torch
 import os
 from scipy import sparse
 import scipy.sparse as sp
 from scipy.sparse import coo_matrix
 import dgl
+import seaborn as sns
 from dgl.data.utils import save_graphs
 import torch.nn.functional as F
 from sklearn.metrics import roc_auc_score, roc_curve, f1_score, classification_report
@@ -157,6 +159,17 @@ def compute_agg_features(g, timerange, add_self_edges=True):
     norm_adj = torch.from_numpy(adj.dot(norm_mat))
     
     return norm_adj
+
+def compute_agg_features_simplified(g, timerange, add_self_edges=True):
+    
+    # Add edges between node and itself
+    if add_self_edges:
+        g.add_edges(g.nodes(), g.nodes())
+    
+    src, dest = g.edges()
+    adj = coo_matrix((np.ones(len(src)), (src.numpy(), dest.numpy())))
+    
+    return adj
 
 def negative_sampling(g, timerange, list_pos_edges):
 

@@ -1,0 +1,7 @@
+,score,score,score,score,score,score,score
+method,DTFT,agg,agg,agg_simp,agg_simp,temporal_edges,time_tensor
+model,GCNTime,GraphConv,GraphSage,GraphConv,GraphSage,GraphSage,GCNTime
+dataset,,,,,,,
+HighSchool,55.04,79.93,87.74,78.81,90.35,49.31,84.53
+SF2H,49.93,60.82,64.68,57.19,61.03,57.25,55.51
+ia-contacts_hypertext2009,36.1,71.86,68.87,69.43,68.18,48.69,63.91
