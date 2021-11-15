@@ -49,7 +49,7 @@ if __name__=='__main__':
     print(f'Adjacency shape : {graph.biadjacency.shape}')
 
     # Split data
-    adj_batches = split(graph.biadjacency, batch_size=20000)
+    adj_batches = split(graph.biadjacency, batch_size=5000)
     print(f'Number of batches : {len(adj_batches)}')
     '''for i in adj_batches:
         print(i.nnz)'''
@@ -137,61 +137,3 @@ if __name__=='__main__':
     mrr_row = MRR(static_scores_row, dyn_scores_row[-1], k=5)
     mrr_col = MRR(static_scores_col, dyn_scores_col[-1], k=5)
     print(f'Mean Reciprocal Rank for rows and cols : {mrr_row:.3f} - {mrr_col:.3f}')
-
-
-    def split_data(graph, batch_size):
-        # Split data
-        adj_batches = split(graph.biadjacency, batch_size=batch_size)
-
-        return adj_batches
-
-    def incremental_PageRank(batches):
-        # Incremental PageRank
-        pagerank = PageRank()
-        dyn_scores_row, dyn_scores_col = [], []
-        scores = pagerank.fit_transform(batches[0])
-        scores_row = pagerank.scores_row_
-        scores_col = pagerank.scores_col_
-        
-        dyn_scores_row.append(scores_row)
-        dyn_scores_col.append(scores_col)
-
-        # Iterate through all batches of edges
-        for idx, batch in enumerate(batches[1:]):
-            scores = pagerank.update_transform(batch)
-            scores_row = pagerank.scores_row_.copy()
-            scores_col = pagerank.scores_col_.copy()
-            dyn_scores_row.append(scores_row)
-            dyn_scores_col.append(scores_col)
-
-        return dyn_scores_row, dyn_scores_col
-
-
-    # Analysis of pics
-    k_vals = [5]
-    batch_sizes = [100836]
-
-    fig, ax = plt.subplots(1, 1, figsize=(12, 7))
-    colors = ['black', 'green', 'blue', 'red']
-
-    for ax_idx, batch_size in enumerate(batch_sizes):
-        batches = split_data(graph, batch_size)
-        dyn_scores_row, dyn_scores_col = incremental_PageRank(batches)
-        
-        # Plots
-        for i, k in enumerate(k_vals):
-            X = range(len(dyn_scores_row))
-            y = [MRR(static_scores_row, batch_r, k=k) for batch_r in dyn_scores_row]
-            plt.plot(X, y, label=f'k={k} (row)', color=colors[i], marker='+')
-            plt.text(max(X)+0.5, y[-1]+0.01, f'{y[-1]:.2f}')
-            #plt.plot(range(len(dyn_scores_col)), 
-            #        [MRR(static_scores_col, batch_c, k=k) for batch_c in dyn_scores_col], 
-            #        label=f'k={k} (col)', color=colors[i], marker='*', alpha=0.3)
-        plt.xlabel('Batches')
-        plt.ylabel('MRR')
-        plt.legend()
-        plt.title(f'Evolution of MRR over batches of edges, according to value of $k$ (batch size={batch_size})', weight='bold'); 
-
-
-
-    
