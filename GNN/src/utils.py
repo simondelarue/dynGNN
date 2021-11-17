@@ -10,7 +10,6 @@ import dgl
 import seaborn as sns
 from dgl.data.utils import save_graphs
 import torch.nn.functional as F
-from sklearn.metrics import roc_auc_score, roc_curve, f1_score, classification_report
 
 def compute_loss(pos_score, neg_score, device):
     scores = torch.cat([pos_score, neg_score])
@@ -28,38 +27,7 @@ def compute_loss_simp(pos_score, device):
 def graphSage_loss(pos_score, neg_score, device):
     pos = F.binary_cross_entropy_with_logits(pos_score, torch.ones(pos_score.shape[0]).to(device), reduction='mean')
     neg = F.binary_cross_entropy_with_logits(neg_score, torch.zeros(neg_score.shape[0]).to(device), reduction='mean')
-    return torch.sum(pos) + 1 * torch.sum(neg)
-
-
-def compute_auc(pos_score, neg_score):
-    
-    # Compute auc
-    scores = torch.cat([pos_score, neg_score]).cpu().numpy()
-    labels = torch.cat(
-        [torch.ones(pos_score.shape[0]), torch.zeros(neg_score.shape[0])]).cpu().numpy()
-    
-    # Compute fpr and tpr
-    fpr, tpr, _ = roc_curve(labels, scores)
-    
-    return roc_auc_score(labels, scores), fpr, tpr
-
-def compute_f1_score(pos_score, neg_score, average):
-
-    # F1 Score
-    scores = torch.cat([pos_score, neg_score]).cpu().numpy()
-    labels = torch.cat(
-        [torch.ones(pos_score.shape[0]), torch.zeros(neg_score.shape[0])]).cpu().numpy()
-
-    return f1_score(labels, scores, average)
-
-def compute_classif_report(pos_score, neg_score):
-
-    scores = torch.cat([pos_score, neg_score]).cpu().numpy()
-    labels = torch.cat(
-        [torch.ones(pos_score.shape[0]), torch.zeros(neg_score.shape[0])]).cpu().numpy()
-
-    return classification_report(labels, scores, digits=3)
-    
+    return torch.sum(pos) + 1 * torch.sum(neg)    
 
 def write_log(filename, text):
     with open(filename, 'a') as f:

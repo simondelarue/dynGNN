@@ -513,9 +513,9 @@ class StreamGraph():
 
         # Store timeranges
         self.trange = np.arange(int(self.g.edata['timestamp'].min()), int(self.g.edata['timestamp'].max()) + timestep, timestep)
-        self.trange_train = self.trange[self.trange < val_time]
-        self.trange_val = self.trange[(self.trange >= val_time) & (self.trange < test_time)]
-        self.trange_test = self.trange[self.trange >= test_time]
+        self.trange_train = self.trange[self.trange <= val_time]
+        self.trange_val = self.trange[(self.trange > val_time) & (self.trange <= test_time)]
+        self.trange_test = self.trange[self.trange > test_time]
 
         # Save graphs
         if neg_sampling:
@@ -535,3 +535,20 @@ class StreamGraph():
         self.val_pos_g = val_pos_g
         self.test_pos_g = test_pos_g
         self.test_pos_seen_g = test_pos_seen_g
+
+    def rank_edges(self, df, timerange):
+        ''' Given a link stream dataframe and a timerange, ranks all edges appearing within the timerange
+            using their order of appearance. Output links and their corresponding ranks as a triplet of
+            arrays. Note that duplicated edges are not removed at this step. '''
+        
+        min_t = np.min(timerange)
+        max_t = np.max(timerange)
+        df_filtered = df[(df['t'] >= min_t) & (df['t'] <= max_t)][['src', 'dest']]#.drop_duplicates(keep='first').reset_index()
+        e_src = df_filtered['src'].values
+        e_dest = df_filtered['dest'].values
+        e_dup = np.array(df_filtered.duplicated(keep='first'))
+        e_ranks = df_filtered.reset_index().index.values
+
+        return e_src, e_dest, e_ranks, e_dup
+        
+

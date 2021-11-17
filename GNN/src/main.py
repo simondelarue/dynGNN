@@ -205,14 +205,15 @@ def run(data, val_size, test_size, cache, batch_size, feat_struct, step_predicti
                                                                 feat_struct=feat_struct, 
                                                                 step_prediction=step_prediction,
                                                                 k_indexes=k_indexes,
-                                                                return_all=True)
+                                                                sg=sg, 
+                                                                return_all=True)                                                
 
             if len(models) > 1:
                 label = f'{triplets[idx]}'
             else:
                 label = f'{model_name}'
 
-            df_tmp = pd.DataFrame([[label, history_score['test_auc'], 0, sg.val_pos_g.number_of_edges(), sg.val_neg_g.number_of_edges(), test_agg, \
+            df_tmp = pd.DataFrame([[label, history_score[f'test_{metric}'], 0, sg.val_pos_g.number_of_edges(), sg.val_neg_g.number_of_edges(), test_agg, \
                                     dup_edges, predictor, loss_func]], 
                                     columns=['model', 'score', 'timestep', 'number_of_edges_pos', 'number_of_edges_neg', 'test_agg', \
                                             'duplicate_edges', 'predictor', 'loss_func'])
@@ -240,7 +241,7 @@ def run(data, val_size, test_size, cache, batch_size, feat_struct, step_predicti
                     else:
                         label = f'{model_name}'
 
-                    df_tmp = pd.DataFrame([[label, history_score['test_auc'], t, val_pos_g.number_of_edges(), val_neg_g.number_of_edges(), test_agg, \
+                    df_tmp = pd.DataFrame([[label, history_score[f'test_{metric}'], t, val_pos_g.number_of_edges(), val_neg_g.number_of_edges(), test_agg, \
                                             dup_edges, predictor, loss_func]], 
                                             columns=['model', 'score', 'timestep', 'number_of_edges_pos', 'number_of_edges_neg', 'test_agg', \
                                             'duplicate_edges', 'predictor', 'loss_func'])
@@ -281,7 +282,7 @@ if __name__=='__main__':
     parser.add_argument('--emb_size', type=int, help='Embedding size', default=20)
     parser.add_argument('--epochs', type=int, help='Number of epochs in training', default=1)
     parser.add_argument('--lr', type=float, help='Learning rate in for training', default=0.001)
-    parser.add_argument('--metric', type=str, help='Evaluation metric : \{auc, f1_score, classification_report\}', default='auc')
+    parser.add_argument('--metric', type=str, help='Evaluation metric : \{auc, kendall, wkendall\}', default='auc')
     parser.add_argument('--duplicate_edges', type=str, help='If true, allows duplicate edges in training graphs', default='True')
     parser.add_argument('--test_agg', type=str, help='If true, predictions are performed on a static graph test.', default='True')
     parser.add_argument('--predictor', type=str, help='\{dotProduct, cosine\}', default='dotProduct')
@@ -310,10 +311,6 @@ if __name__=='__main__':
 
     print(f'Device : {DEVICE}')
     
-    # ------ Sanity check ------
-    #if MODEL=='GCNTime' and FEAT_STRUCT!='time_tensor':
-    #    raise Exception("'GCNTime' model should only be filled with 'time_tensor' value for feature structure parameter.")
-
     # ------ Run model ------
     run(args.data,
         VAL_SIZE,

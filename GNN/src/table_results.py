@@ -39,6 +39,14 @@ if __name__=='__main__':
                 df_tmp = pd.read_pickle(f'{global_path}/{path}/{f}')
                 df_tmp['method'] = method
                 df_tmp['dataset'] = dataset
+                for metric in ['auc', 'kendall', 'wkendall']:
+                    if metric in f:
+                        df_tmp['metric'] = metric
+                        if metric == 'auc':
+                            df_tmp['score'] = (df_tmp['score']*100).round(2)
+                        elif metric in ['kendall', 'wkendall']:
+                            df_tmp['score'] = (df_tmp['score']).round(4)
+                
                 df = pd.concat([df, df_tmp])
 
     filename = 'results'
@@ -50,34 +58,36 @@ if __name__=='__main__':
 
     # Average results over time
     df_avg = df.copy()
-    cols = ['dataset', 'model', 'method', 'score', 'timestep', 'test_agg', 'duplicate_edges', 'predictor', 'loss_func']
-    agg_cols = ['dataset', 'model', 'method', 'test_agg', 'duplicate_edges', 'predictor', 'loss_func']
+    cols = ['dataset', 'model', 'method', 'metric', 'score', 'timestep', 'test_agg', 'duplicate_edges', 'predictor', 'loss_func']
+    agg_cols = ['dataset', 'model', 'method', 'metric', 'test_agg', 'duplicate_edges', 'predictor', 'loss_func']
 
     # Whole test - no duplicate edges
     filename1 = 'results_test_agg_no_dup_edges'
     if args.model == 'GCN_lc':
         filename1 = 'results_test_agg_no_dup_edges_GCN_lc'
-    df_avg_1 = df_avg[(df_avg['test_agg']=='True') & (df_avg['duplicate_edges']=='False')]
+    df_avg_1 = df_avg[(df_avg['test_agg']=='True') & (df_avg['duplicate_edges']=='False') & (df_avg['metric']=='kendall')]
     df_avg_1 = df_avg_1[cols].groupby(agg_cols)['score'].mean().reset_index()
-    df_avg_1 = (pd.pivot_table(df_avg_1, values=['score'], index='dataset', columns=['method', 'model'])*100).round(2)
-    df_avg_1.to_csv(f'{global_path}/{filename1}.csv')
+    df_avg_1 = pd.pivot_table(df_avg_1, values=['score'], index='dataset', columns=['method', 'model', 'metric'])
+    df_avg_1.to_csv(f'{global_path}/{filename1}_filt.csv')
+    print(df_avg_1)
 
     # Whole test - duplicate edges
     filename2 = 'results_test_agg_dup_edges'
     if args.model == 'GCN_lc':
         filename2 = 'results_test_agg_dup_edges_GCN_lc'
-    df_avg_2 = df_avg[(df_avg['test_agg']=='True') & (df_avg['duplicate_edges']=='True')]
+    df_avg_2 = df_avg[(df_avg['test_agg']=='True') & (df_avg['duplicate_edges']=='True') & (df_avg['metric']=='kendall')]
     df_avg_2 = df_avg_2[cols].groupby(agg_cols)['score'].mean().reset_index()
-    df_avg_2 = (pd.pivot_table(df_avg_2, values=['score'], index='dataset', columns=['method', 'model'])*100).round(2)
-    df_avg_2.to_csv(f'{global_path}/{filename2}.csv')
+    df_avg_2 = pd.pivot_table(df_avg_2, values=['score'], index='dataset', columns=['method', 'model', 'metric'])
+    df_avg_2.to_csv(f'{global_path}/{filename2}_filt.csv')
+    print(df_avg_2)
 
     # Snapshots test - no duplicate edges
-    filename3 = 'results_no_test_agg_no_dup_edges'
+    '''filename3 = 'results_no_test_agg_no_dup_edges'
     if args.model == 'GCN_lc':
         filename3 = 'results_no_test_agg_no_dup_edges_GCN_lc'
     df_avg_3 = df_avg[(df_avg['test_agg']=='False') & (df_avg['duplicate_edges']=='False')]
     df_avg_3 = df_avg_3[cols].groupby(agg_cols)['score'].mean().reset_index()
-    df_avg_3 = (pd.pivot_table(df_avg_3, values=['score'], index='dataset', columns=['method', 'model'])*100).round(2)
+    df_avg_3 = pd.pivot_table(df_avg_3, values=['score'], index='dataset', columns=['method', 'model', 'metric'])
     df_avg_3.to_csv(f'{global_path}/{filename3}.csv')
 
     # Snapshots test - duplicate edges
@@ -91,5 +101,5 @@ if __name__=='__main__':
                    (df_avg_4['method']=='DTFT')])
     print(tmp.head())
     df_avg_4 = df_avg_4[cols].groupby(agg_cols)['score'].mean().reset_index()
-    df_avg_4 = (pd.pivot_table(df_avg_4, values=['score'], index='dataset', columns=['method', 'model'])*100).round(2)
-    df_avg_4.to_csv(f'{global_path}/{filename4}.csv')    
+    df_avg_4 = pd.pivot_table(df_avg_4, values=['score'], index='dataset', columns=['method', 'model', 'metric'])
+    df_avg_4.to_csv(f'{global_path}/{filename4}.csv')   ''' 

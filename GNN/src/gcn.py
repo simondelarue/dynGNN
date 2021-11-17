@@ -1,4 +1,6 @@
 from collections import defaultdict
+import numpy as np
+import os
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -7,7 +9,7 @@ import time
 from layer import *
 from dgl.nn.pytorch.conv import GraphConv
 from dgl.nn import SAGEConv
-from utils import compute_auc, compute_classif_report, compute_f1_score
+from metrics import compute_auc, compute_classif_report, compute_f1_score, compute_kendall
 from overrides import overrides
 
 class GCNModel(nn.Module):
@@ -92,7 +94,8 @@ class GCNModel(nn.Module):
         self.embedding_ = h
         self.history_train_ = history
         
-    def test(self, predictor, test_pos_g, test_neg_g, metric, feat_struct, step_prediction='single', k_indexes=None, return_all=True):
+    def test(self, predictor, test_pos_g, test_neg_g, metric, feat_struct, step_prediction='single', 
+            k_indexes=None, sg=None, return_all=True):
 
         history = {} # useful for plots
         embedding = self.embedding_
@@ -120,17 +123,45 @@ class GCNModel(nn.Module):
             pos_score = predictor(test_pos_g, embedding)
             neg_score = predictor(test_neg_g, embedding)
 
-            if metric=='auc':
+            if metric == 'auc':
                 auc, fpr, tpr = compute_auc(pos_score, neg_score)
                 # Save results
                 history[f'test_{metric}'] = auc
                 history['test_fpr'] = fpr
                 history['test_tpr'] = tpr
-            elif metric=='f1_score':
-                score = compute_f1_score(pos_score, neg_score, 'macro')
-                # Save results
-                history[f'test_{metric}'] = score
 
+            elif metric == 'f1_score':
+                score = compute_f1_score(pos_score, neg_score, 'macro')
+                history[f'test_{metric}'] = score
+                
+            elif metric in ['kendall', 'wKendall']:
+                # True ranks
+                src, dest, ranks, dup_mask = sg.rank_edges(sg.data_df, sg.trange_val)
+
+                # Predicted ranks
+                if len(pos_score) != len(ranks):
+                    len_pos_score = len(pos_score)
+                    pos_score = pos_score[:int(len_pos_score/2)]
+                    pred_ranks = np.argsort(-pos_score[~dup_mask])
+                else:
+                    pred_ranks = np.argsort(-pos_score[~dup_mask])
+
+                true_ranks = np.array(range(0, len(pred_ranks)))
+                
+                #for i in range(10):
+                #   print(f'TRUE : ({src[i]}, {dest[i]}) - PRED ({test_pos_g.edges()[0][i].numpy()}, {test_pos_g.edges()[1][i].numpy()})')
+                
+                if metric == 'wkendall':
+                    tau, _ = compute_kendall(true_ranks, pred_ranks, weighted=True)
+                    history['test_wkendall'] = tau
+                elif metric == 'kendall':
+                    tau, p_value = compute_kendall(true_ranks, pred_ranks, weighted=False)
+                    history['test_kendall'] = tau
+                    # Save p-values in Log
+                    LOG_PATH = f'{os.getcwd()}/logs'
+                    with open(f'{LOG_PATH}/p_values.txt', 'a') as f:
+                        f.write(f'{sg.name}, {predictor}, {feat_struct}, {metric}, {tau}, {p_value}\n')
+        
             if return_all:
                 return history, pos_score, neg_score
             else:
