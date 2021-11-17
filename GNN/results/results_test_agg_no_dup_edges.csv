@@ -1,7 +1,8 @@
-,score,score,score,score,score,score,score
-method,DTFT,agg,agg,agg_simp,agg_simp,temporal_edges,time_tensor
-model,GCNTime,GraphConv,GraphSage,GraphConv,GraphSage,GraphSage,GCNTime
-dataset,,,,,,,
-HighSchool,55.04,79.93,87.74,78.81,90.35,49.31,84.53
-SF2H,49.93,60.82,64.68,57.19,61.03,57.25,55.51
-ia-contacts_hypertext2009,36.1,71.86,68.87,69.43,68.18,48.69,63.91
+,score,score,score,score,score,score,score,score,score,score,score,score,score,score,score,score,score,score,score,score,score
+method,DTFT,DTFT,DTFT,agg,agg,agg,agg,agg,agg,agg_simp,agg_simp,agg_simp,agg_simp,agg_simp,agg_simp,temporal_edges,temporal_edges,temporal_edges,time_tensor,time_tensor,time_tensor
+model,GCNTime,GCNTime,GCNTime,GraphConv,GraphConv,GraphConv,GraphSage,GraphSage,GraphSage,GraphConv,GraphConv,GraphConv,GraphSage,GraphSage,GraphSage,GraphSage,GraphSage,GraphSage,GCNTime,GCNTime,GCNTime
+metric,auc,kendall,wkendall,auc,kendall,wkendall,auc,kendall,wkendall,auc,kendall,wkendall,auc,kendall,wkendall,auc,kendall,wkendall,auc,kendall,wkendall
+dataset,,,,,,,,,,,,,,,,,,,,,
+HighSchool,55.04,0.0341,0.2719,79.93,-0.3377,0.1802,87.74,0.0637,0.1785,78.81,-0.3377,-0.1664,90.35,0.076,0.0998,49.31,0.032,0.0757,84.53,0.0593,0.0292
+SF2H,49.93,0.0336,-0.1212,60.82,-0.0109,-0.0198,64.68,-0.0195,0.022,57.19,-0.0342,-0.0911,61.03,-0.0088,0.0503,57.25,0.0549,0.0522,55.51,0.0297,0.0513
+ia-contacts_hypertext2009,36.1,0.0929,0.1457,71.86,0.0918,0.2154,68.87,0.0594,0.0556,69.43,0.0877,0.1561,68.18,0.0654,0.1419,48.69,0.0305,-0.0075,63.91,0.0237,0.2189
