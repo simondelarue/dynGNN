@@ -94,7 +94,7 @@ class GCNModel(nn.Module):
         self.embedding_ = h
         self.history_train_ = history
         
-    def test(self, predictor, test_pos_g, test_neg_g, metric, feat_struct, step_prediction='single', 
+    def test(self, predictor, test_pos_g, test_neg_g, metric, timestep, feat_struct, step_prediction='single', 
             k_indexes=None, sg=None, return_all=True):
 
         history = {} # useful for plots
@@ -134,32 +134,29 @@ class GCNModel(nn.Module):
                 score = compute_f1_score(pos_score, neg_score, 'macro')
                 history[f'test_{metric}'] = score
                 
-            elif metric in ['kendall', 'wKendall']:
+            elif 'kendall' in metric:
                 # True ranks
-                src, dest, ranks, dup_mask = sg.rank_edges(sg.data_df, sg.trange_val)
+                src, dest, ranks, dup_mask = sg.rank_edges(sg.data_df, sg.trange_val, metric=metric, timestep=timestep)
 
                 # Predicted ranks
                 if len(pos_score) != len(ranks):
                     len_pos_score = len(pos_score)
-                    pos_score = pos_score[:int(len_pos_score/2)]
+                    pos_score = pos_score[:int(len(ranks))]
                     pred_ranks = np.argsort(-pos_score[~dup_mask])
                 else:
                     pred_ranks = np.argsort(-pos_score[~dup_mask])
 
                 true_ranks = np.array(range(0, len(pred_ranks)))
                 
-                #for i in range(10):
-                #   print(f'TRUE : ({src[i]}, {dest[i]}) - PRED ({test_pos_g.edges()[0][i].numpy()}, {test_pos_g.edges()[1][i].numpy()})')
-                
-                if metric == 'wkendall':
+                if metric.startswith('wkendall'):
                     tau, _ = compute_kendall(true_ranks, pred_ranks, weighted=True)
                     history['test_wkendall'] = tau
-                elif metric == 'kendall':
+                elif metric.startswith('kendall'):
                     tau, p_value = compute_kendall(true_ranks, pred_ranks, weighted=False)
-                    history['test_kendall'] = tau
+                    history[f'test_{metric}'] = tau
                     # Save p-values in Log
                     LOG_PATH = f'{os.getcwd()}/logs'
-                    with open(f'{LOG_PATH}/p_values.txt', 'a') as f:
+                    with open(f'{LOG_PATH}/p_values_{metric}.txt', 'a') as f:
                         f.write(f'{sg.name}, {predictor}, {feat_struct}, {metric}, {tau}, {p_value}\n')
         
             if return_all:

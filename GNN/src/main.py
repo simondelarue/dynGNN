@@ -35,7 +35,7 @@ def run(data, val_size, test_size, cache, batch_size, feat_struct, step_predicti
         glist = list(load_graphs(f"{os.getcwd()}/{args.cache}/data.bin")[0])
         train_g, train_pos_g, train_neg_g, val_pos_g, val_neg_g, test_pos_g, test_neg_g, test_pos_seen_g, test_neg_seen_g = glist 
     else:
-        sg.train_test_split(val_size, test_size, timestep=timestep, neg_sampling=True)
+        sg.train_test_split(val_size, test_size, timestep=timestep, neg_sampling=True, metric=metric)
     end = time.time()
     print(f'Elapsed time : {end-start}s')
 
@@ -202,6 +202,7 @@ def run(data, val_size, test_size, cache, batch_size, feat_struct, step_predicti
                                                                 sg.val_pos_g, 
                                                                 sg.val_neg_g, 
                                                                 metric=metric, 
+                                                                timestep=timestep,
                                                                 feat_struct=feat_struct, 
                                                                 step_prediction=step_prediction,
                                                                 k_indexes=k_indexes,
@@ -226,7 +227,8 @@ def run(data, val_size, test_size, cache, batch_size, feat_struct, step_predicti
                     history_score, val_pos_score, val_neg_score = trained_model.test(pred, 
                                                                         val_pos_g, 
                                                                         val_neg_g, 
-                                                                        metric=metric, 
+                                                                        metric=metric,
+                                                                        timestep=timestep,
                                                                         feat_struct=feat_struct, 
                                                                         step_prediction=step_prediction,
                                                                         k_indexes=k_indexes,
@@ -282,7 +284,7 @@ if __name__=='__main__':
     parser.add_argument('--emb_size', type=int, help='Embedding size', default=20)
     parser.add_argument('--epochs', type=int, help='Number of epochs in training', default=1)
     parser.add_argument('--lr', type=float, help='Learning rate in for training', default=0.001)
-    parser.add_argument('--metric', type=str, help='Evaluation metric : \{auc, kendall, wkendall\}', default='auc')
+    parser.add_argument('--metric', type=str, help='Evaluation metric : \{auc, kendall, wkendall, kendall@5, kendall@10, kendall@25, kendall@50\}', default='auc')
     parser.add_argument('--duplicate_edges', type=str, help='If true, allows duplicate edges in training graphs', default='True')
     parser.add_argument('--test_agg', type=str, help='If true, predictions are performed on a static graph test.', default='True')
     parser.add_argument('--predictor', type=str, help='\{dotProduct, cosine\}', default='dotProduct')

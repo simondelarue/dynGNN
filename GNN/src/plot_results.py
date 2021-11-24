@@ -14,14 +14,56 @@ def plot_val_score(x, y, ax, metric, marker, label):
 if __name__=='__main__':
     global_path = '/home/infres/sdelarue/node-embedding/GNN/results'
 
-    #datasets = ['SF2H', 'HighSchool', 'ia-contact']
-    #datasets = ['ia-enron-employees']
-    datasets = ['HighSchool']
-    methods = ['agg_simp', 'agg', 'time_tensor']
-    #methods = ['agg', 'temporal_edges', 'time_tensor']
+    datasets = ['SF2H', 'HighSchool', 'ia-contacts_hypertext2009']
+    methods = ['agg_simp', 'agg', 'temporal_edges', 'time_tensor', 'DTFT']
+    order = {'@5': 0, '@10': 1, '@25': 2, '@50': 3}
+    titles = {'agg_simp': 'Agg', 'agg': 'wAgg', 'temporal_edges': 'TDAG', 'time_tensor': '3d-tensor', 'DTFT': 'DTFT'}
+    items = {'GraphConv': ['black', '*'], 'GraphSage': ['darkblue', '.'], 'GCNTime': ['green', '+']}
     #step_predictions = ['single', 'multi']
 
-    for dataset in datasets:
+    for i, dataset in enumerate(datasets):
+        fig, ax = plt.subplots(1, len(methods), figsize=(20, 4))
+        
+        for j, method in enumerate(methods):
+            x, y = [], []
+            path = f'{dataset}/{method}'
+
+            files = [f for f in listdir(f'{global_path}/{path}') if (f.endswith('.pkl') and ('@' in f) and not f.startswith(f'{dataset}_GCN_lc'))]
+            df_tot = pd.DataFrame()
+            for f in files:
+                df_tmp = pd.read_pickle(f'{global_path}/{path}/{f}')
+                df_tmp['method'] = method
+                df_tmp['dataset'] = dataset
+                df_tmp['metric'] = '@' + f.split('@')[1][:2].split('_')[0]
+                df_tmp['order'] = df_tmp['metric'].apply(lambda x: order.get(x))
+                pred = df_tmp['predictor'].unique()[0]
+                loss = df_tmp['loss_func'].unique()[0]
+                df_tot = pd.concat([df_tot, df_tmp])
+
+            df_tot = df_tot.sort_values(['model', 'order'])
+
+            models = np.array(df_tot['model'].unique())
+            for m, model in enumerate(models):
+                ax[j].plot(np.array(df_tot[df_tot['model']==model]['metric']), 
+                            np.array(df_tot[df_tot['model']==model]['score']), 
+                            label=model, marker=items.get(model)[1], color=items.get(model)[0])
+                ax[j].legend(loc='upper right')
+                ax[j].set_xlabel('Kendall@')
+                ax[j].set_ylabel("Kendall tau")
+                ax[j].set_ylim(-0.15, 1)
+                ax[j].set_title(titles.get(method), weight='bold')
+                ax[j].spines['top'].set_visible(False)
+                ax[j].spines['right'].set_visible(False)
+                ax[j].spines['bottom'].set_visible(True)
+                ax[j].spines['left'].set_visible(True)
+
+        # Save results
+        filename = f"{dataset}_True_True_kendall@_{pred}_{loss}"
+        fig.savefig(f'{global_path}/{dataset}/{filename}.eps', bbox_inches='tight', transparent=False, pad_inches=0)    
+        save_figures(fig, f'{global_path}/{dataset}', filename)
+
+
+    '''for dataset in datasets:
         fig, ax = plt.subplots(1, 1, figsize=(12, 7))
         markers = ['*', '.', '+']
         for method, marker in zip(methods, markers):
@@ -61,7 +103,7 @@ if __name__=='__main__':
 
         # Save results
         filename = f"{dataset}_False_True_{pred}_{loss}"
-        save_figures(fig, f'{global_path}/{dataset}', filename)
+        save_figures(fig, f'{global_path}/{dataset}', filename)'''
 
 
     # GCN Linear combination

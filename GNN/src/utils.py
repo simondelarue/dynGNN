@@ -189,6 +189,16 @@ def temporal_sampler(g, batch_size, timestep):
         
     return batches, indexes   
 
+def nb_edges_at_ts(df, start, nb_ts):
+    ''' Returns the total number of edges in link stream, starting from timestep 'start', during 'nb_ts' number of timesteps. '''
+
+    df_tmp = df[(df['t'] >= start)].copy()
+    ts_k = df_tmp['t'].unique()[:nb_ts]
+    df_filt = df_tmp[df_tmp['t'] <= ts_k[-1]]
+    nb_edges = df_filt.shape[0]
+
+    return nb_edges
+
 def plot_history_loss(history, ax, label=None):
     if label is not None:
         ax.plot(range(len(history)), history, label=f'Loss - {label}')

@@ -19,8 +19,9 @@ if __name__=='__main__':
     global_path = '/home/infres/sdelarue/node-embedding/GNN/results'
 
     #datasets = ['SF2H', 'HighSchool', 'ia-contact', 'ia-contacts_hypertext2009', 'ia-enron-employees']
-    datasets = ['SF2H', 'HighSchool', 'ia-contacts_hypertext2009']
-    methods = ['agg_simp', 'agg', 'temporal_edges', 'time_tensor', 'DTFT']
+    datasets = ['SF2H']#, 'HighSchool', 'ia-contacts_hypertext2009']
+    methods = ['agg_simp', 'agg']#, 'temporal_edges', 'time_tensor', 'DTFT']
+    metrics = ['auc', 'kendall', 'wkendall', 'kendall@5', 'kendall@10', 'kendall@25', 'kendall@50']
     #step_predictions = ['single', 'multi']
 
     df = pd.DataFrame()
@@ -39,12 +40,12 @@ if __name__=='__main__':
                 df_tmp = pd.read_pickle(f'{global_path}/{path}/{f}')
                 df_tmp['method'] = method
                 df_tmp['dataset'] = dataset
-                for metric in ['auc', 'kendall', 'wkendall']:
+                for metric in metrics:
                     if metric in f:
                         df_tmp['metric'] = metric
                         if metric == 'auc':
                             df_tmp['score'] = (df_tmp['score']*100).round(2)
-                        elif metric in ['kendall', 'wkendall']:
+                        else:
                             df_tmp['score'] = (df_tmp['score']).round(4)
                 
                 df = pd.concat([df, df_tmp])
@@ -62,23 +63,23 @@ if __name__=='__main__':
     agg_cols = ['dataset', 'model', 'method', 'metric', 'test_agg', 'duplicate_edges', 'predictor', 'loss_func']
 
     # Whole test - no duplicate edges
-    filename1 = 'results_test_agg_no_dup_edges'
+    '''filename1 = 'results_test_agg_no_dup_edges'
     if args.model == 'GCN_lc':
         filename1 = 'results_test_agg_no_dup_edges_GCN_lc'
-    df_avg_1 = df_avg[(df_avg['test_agg']=='True') & (df_avg['duplicate_edges']=='False') & (df_avg['metric']=='kendall')]
+    df_avg_1 = df_avg[(df_avg['test_agg']=='True') & (df_avg['duplicate_edges']=='False')]
     df_avg_1 = df_avg_1[cols].groupby(agg_cols)['score'].mean().reset_index()
     df_avg_1 = pd.pivot_table(df_avg_1, values=['score'], index='dataset', columns=['method', 'model', 'metric'])
     df_avg_1.to_csv(f'{global_path}/{filename1}_filt.csv')
-    print(df_avg_1)
+    print(df_avg_1)'''
 
     # Whole test - duplicate edges
     filename2 = 'results_test_agg_dup_edges'
     if args.model == 'GCN_lc':
         filename2 = 'results_test_agg_dup_edges_GCN_lc'
-    df_avg_2 = df_avg[(df_avg['test_agg']=='True') & (df_avg['duplicate_edges']=='True') & (df_avg['metric']=='kendall')]
+    df_avg_2 = df_avg[(df_avg['test_agg']=='True') & (df_avg['duplicate_edges']=='True') & (df_avg['metric'].str.startswith('kendall@'))]
     df_avg_2 = df_avg_2[cols].groupby(agg_cols)['score'].mean().reset_index()
     df_avg_2 = pd.pivot_table(df_avg_2, values=['score'], index='dataset', columns=['method', 'model', 'metric'])
-    df_avg_2.to_csv(f'{global_path}/{filename2}_filt.csv')
+    #df_avg_2.to_csv(f'{global_path}/{filename2}_filt.csv')
     print(df_avg_2)
 
     # Snapshots test - no duplicate edges

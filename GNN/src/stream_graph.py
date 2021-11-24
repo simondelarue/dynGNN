@@ -411,7 +411,7 @@ class StreamGraph():
         print('Done !')
 
 
-    def train_test_split(self, val_size: float, test_size: float, timestep: int, neg_sampling: bool = True):
+    def train_test_split(self, val_size: float, test_size: float, timestep: int, neg_sampling: bool = True, metric=None):
 
         print('\nSplitting graph ...')
 
@@ -447,12 +447,22 @@ class StreamGraph():
         # -- Positive edges --
         # Postiive edges are used to create positive graphs according to splits
 
+        if metric is not None:
+            split = metric.split('@')
+            if len(split) == 2:
+                nb_timesteps = int(split[1])
+                nb_edges = nb_edges_at_ts(self.data_df, val_time, nb_timesteps)
+            else:
+                nb_edges = len(source)
+        else:
+            nb_edges = len(source)
+
         train_pos_g = dgl.graph((source[train_mask], dest[train_mask]), num_nodes=self.g.number_of_nodes())
-        val_pos_g = dgl.graph((source[val_mask], dest[val_mask]), num_nodes=self.g.number_of_nodes())
-        test_pos_g = dgl.graph((source[test_mask], dest[test_mask]), num_nodes=self.g.number_of_nodes())
+        val_pos_g = dgl.graph((source[val_mask][:nb_edges], dest[val_mask][:nb_edges]), num_nodes=self.g.number_of_nodes())
+        test_pos_g = dgl.graph((source[test_mask][:nb_edges], dest[test_mask][:nb_edges]), num_nodes=self.g.number_of_nodes())
         train_pos_g.edata['timestamp'] = timestamp[train_mask]
-        val_pos_g.edata['timestamp'] = timestamp[val_mask]
-        test_pos_g.edata['timestamp'] = timestamp[test_mask]
+        val_pos_g.edata['timestamp'] = timestamp[val_mask][:nb_edges]
+        test_pos_g.edata['timestamp'] = timestamp[test_mask][:nb_edges]
 
         # In addition to previous test set, we create a another test set which contains only edges
         # that appeared before in time (i.e in training set)
@@ -536,14 +546,21 @@ class StreamGraph():
         self.test_pos_g = test_pos_g
         self.test_pos_seen_g = test_pos_seen_g
 
-    def rank_edges(self, df, timerange):
+    def rank_edges(self, df, timerange, metric, timestep=20):
         ''' Given a link stream dataframe and a timerange, ranks all edges appearing within the timerange
             using their order of appearance. Output links and their corresponding ranks as a triplet of
             arrays. Note that duplicated edges are not removed at this step. '''
-        
-        min_t = np.min(timerange)
-        max_t = np.max(timerange)
-        df_filtered = df[(df['t'] >= min_t) & (df['t'] <= max_t)][['src', 'dest']]#.drop_duplicates(keep='first').reset_index()
+
+        min_t = np.min(timerange) - timestep
+
+        if '@' in metric:
+            nb_edges = nb_edges_at_ts(df, min_t, int(metric.split('@')[1]))
+            df_tmp = df[(df['t'] >= min_t)][['src', 'dest']]
+            df_filtered = df_tmp.iloc[:nb_edges, :]
+        else:
+            max_t = np.max(timerange)
+            df_filtered = df[(df['t'] >= min_t) & (df['t'] <= max_t)][['src', 'dest']]
+
         e_src = df_filtered['src'].values
         e_dest = df_filtered['dest'].values
         e_dup = np.array(df_filtered.duplicated(keep='first'))
