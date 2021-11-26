@@ -14,21 +14,23 @@ def plot_val_score(x, y, ax, metric, marker, label):
 if __name__=='__main__':
     global_path = '/home/infres/sdelarue/node-embedding/GNN/results'
 
-    datasets = ['SF2H', 'HighSchool', 'ia-contacts_hypertext2009']
-    methods = ['agg_simp', 'agg', 'temporal_edges', 'time_tensor', 'DTFT']
+    datasets = ['HighSchool']#, 'HighSchool', 'ia-contacts_hypertext2009']
+    #methods = ['agg_simp', 'agg', 'temporal_edges', 'time_tensor', 'DTFT']
+    methods = ['agg_simp', 'agg', 'temporal_edges', 'time_tensor', ]
     order = {'@5': 0, '@10': 1, '@25': 2, '@50': 3}
     titles = {'agg_simp': 'Agg', 'agg': 'wAgg', 'temporal_edges': 'TDAG', 'time_tensor': '3d-tensor', 'DTFT': 'DTFT'}
     items = {'GraphConv': ['black', '*'], 'GraphSage': ['darkblue', '.'], 'GCNTime': ['green', '+']}
+    metric = 'Spearmanr'
     #step_predictions = ['single', 'multi']
 
     for i, dataset in enumerate(datasets):
-        fig, ax = plt.subplots(1, len(methods), figsize=(20, 4))
+        fig, ax = plt.subplots(1, len(methods)+1, figsize=(20, 4))
         
         for j, method in enumerate(methods):
             x, y = [], []
             path = f'{dataset}/{method}'
 
-            files = [f for f in listdir(f'{global_path}/{path}') if (f.endswith('.pkl') and ('@' in f) and not f.startswith(f'{dataset}_GCN_lc'))]
+            files = [f for f in listdir(f'{global_path}/{path}') if (f.endswith('.pkl') and (metric.lower() in f) and ('@' in f) and ('BCEWithLogits' in f) and not f.startswith(f'{dataset}_GCN_lc'))]
             df_tot = pd.DataFrame()
             for f in files:
                 df_tmp = pd.read_pickle(f'{global_path}/{path}/{f}')
@@ -48,9 +50,13 @@ if __name__=='__main__':
                             np.array(df_tot[df_tot['model']==model]['score']), 
                             label=model, marker=items.get(model)[1], color=items.get(model)[0])
                 ax[j].legend(loc='upper right')
-                ax[j].set_xlabel('Kendall@')
-                ax[j].set_ylabel("Kendall tau")
-                ax[j].set_ylim(-0.15, 1)
+                ax[j].set_xlabel(f'{metric}@')
+                if metric == 'Kendall':
+                    var = 'tau'
+                elif metric == 'Spearmanr':
+                    var = 'rho'
+                ax[j].set_ylabel(f'{metric} {var}')
+                ax[j].set_ylim(-0.05, 0.2)
                 ax[j].set_title(titles.get(method), weight='bold')
                 ax[j].spines['top'].set_visible(False)
                 ax[j].spines['right'].set_visible(False)
@@ -58,7 +64,7 @@ if __name__=='__main__':
                 ax[j].spines['left'].set_visible(True)
 
         # Save results
-        filename = f"{dataset}_True_True_kendall@_{pred}_{loss}"
+        filename = f"{dataset}_True_True_{metric}@_{pred}_{loss}"
         fig.savefig(f'{global_path}/{dataset}/{filename}.eps', bbox_inches='tight', transparent=False, pad_inches=0)    
         save_figures(fig, f'{global_path}/{dataset}', filename)
 
