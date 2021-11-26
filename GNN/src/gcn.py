@@ -1,14 +1,17 @@
+# -*- coding: utf-8 -*-
+
 from collections import defaultdict
 import numpy as np
 import os
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
+from overrides import overrides
 import time
 
 from dgl.nn.pytorch.conv import GraphConv
 from dgl.nn import SAGEConv
-from overrides import overrides
+
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
 
 from metrics import compute_auc, compute_classif_report, compute_f1_score, compute_kendall, compute_metric, compute_spearmanr
 from layer import *

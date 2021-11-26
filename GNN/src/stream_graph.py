@@ -1,19 +1,20 @@
+# -*- coding: utf-8 -*-
+
 import pandas as pd
 import numpy as np
-import dgl
-import torch
 import os
 import time
 import random
 from collections import defaultdict
-from line_profiler import LineProfiler
-from multiprocessing import Pool
-from os.path import exists
 from scipy.sparse import coo_matrix
+
+import dgl
+from dgl.data.utils import save_graphs
+import torch
+
 from data_loader import DataLoader
 from utils import *
-from itertools import permutations
-from dgl.data.utils import load_graphs, save_graphs
+
 
 class StreamGraph():
     ''' A stream graph is a dynamic graph that can be defined by :math: `G = (V, E, T)`, where :math:`T` provides information about
