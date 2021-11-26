@@ -9,13 +9,12 @@ import itertools
 import matplotlib.pyplot as plt
 
 import dgl
-from dgl.data.utils import load_graphs, save_graphs
+from dgl.data.utils import load_graphs
 import torch
 
 from utils import *
 from loss import *
 from timesteps import *
-from temporal_sampler import temporal_sampler
 from predictor import DotPredictor, CosinePredictor
 from gcn import *
 from data_loader import DataLoader

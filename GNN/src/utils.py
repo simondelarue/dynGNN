@@ -79,23 +79,6 @@ def normalize_adj(A):
     
     return torch.from_numpy(A_norm)
 
-'''def add_self_edges(self, g):
-    self.add_self_edges = True
-    self.g.add_edges(self.g.nodes(), self.g.nodes())
-    if self.is_splitted:
-        self.train_g.add_edges(self.train_g.nodes(), self.train_g.nodes())
-        self.train_pos_g.add_edges(self.train_pos_g.nodes(), self.train_pos_g.nodes())
-        self.val_pos_g.add_edges(self.val_pos_g.nodes(), self.val_pos_g.nodes())
-        self.test_pos_g.add_edges(self.test_pos_g.nodes(), self.test_pos_g.nodes())
-        self.test_pos_seen_g.add_edges(self.test_pos_seen_g.nodes(), self.test_pos_seen_g.nodes())
-    if self.neg_sampling:
-        self.train_neg_g.add_edges(self.train_neg_g.nodes(), self.train_neg_g.nodes())
-        self.val_neg_g.add_edges(self.val_neg_g.nodes(), self.val_neg_g.nodes())
-        self.test_neg_g.add_edges(self.test_neg_g.nodes(), self.test_neg_g.nodes())
-        self.test_neg_seen_g.add_edges(self.test_neg_seen_g.nodes(), self.test_neg_seen_g.nodes())
-    return g.add_edges(g.nodes(), g.nodes())'''
-    
-
 def compute_agg_features(g, timerange, add_self_edges=True):
     
     # Add edges between node and itself
@@ -143,7 +126,7 @@ def negative_sampling(g, timerange, list_pos_edges):
 
     return list_neg_edges
 
-def temporal_sampler(g, batch_size, timestep):
+"""def temporal_sampler(g, batch_size, timestep):
     ''' Returns a list of subgraph according to desired batch size. '''
     
     batches = []
@@ -169,7 +152,7 @@ def temporal_sampler(g, batch_size, timestep):
         else:
             indexes.append(False)
         
-    return batches, indexes   
+    return batches, indexes   """
 
 def nb_edges_at_ts(df, start, nb_ts):
     ''' Returns the total number of edges in link stream, starting from timestep 'start', during 'nb_ts' number of timesteps. '''
