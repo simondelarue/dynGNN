@@ -6,11 +6,13 @@ import torch.nn as nn
 import torch.nn.functional as F
 import time
 
-from layer import *
 from dgl.nn.pytorch.conv import GraphConv
 from dgl.nn import SAGEConv
-from metrics import compute_auc, compute_classif_report, compute_f1_score, compute_kendall
 from overrides import overrides
+
+from metrics import compute_auc, compute_classif_report, compute_f1_score, compute_kendall, compute_metric, compute_spearmanr
+from layer import *
+from utils import write_log
 
 class GCNModel(nn.Module):
     def __init__(self, in_feats, h_feats):
@@ -123,7 +125,11 @@ class GCNModel(nn.Module):
             pos_score = predictor(test_pos_g, embedding)
             neg_score = predictor(test_neg_g, embedding)
 
-            if metric == 'auc':
+            kwargs = {'pos_score': pos_score, 'neg_score': neg_score, 'timestep': timestep, 'feat_struct': feat_struct, 
+                    'predictor': predictor, 'sg': sg}
+
+            history = compute_metric(metric, **kwargs)
+            '''if metric == 'auc':
                 auc, fpr, tpr = compute_auc(pos_score, neg_score)
                 # Save results
                 history[f'test_{metric}'] = auc
@@ -134,7 +140,9 @@ class GCNModel(nn.Module):
                 score = compute_f1_score(pos_score, neg_score, 'macro')
                 history[f'test_{metric}'] = score
                 
-            elif 'kendall' in metric:
+            elif ('kendall' in metric) or ('spearmanr' in metric):
+                LOG_PATH = f'{os.getcwd()}/logs'
+
                 # True ranks
                 src, dest, ranks, dup_mask = sg.rank_edges(sg.data_df, sg.trange_val, metric=metric, timestep=timestep)
 
@@ -151,13 +159,20 @@ class GCNModel(nn.Module):
                 if metric.startswith('wkendall'):
                     tau, _ = compute_kendall(true_ranks, pred_ranks, weighted=True)
                     history['test_wkendall'] = tau
+
                 elif metric.startswith('kendall'):
                     tau, p_value = compute_kendall(true_ranks, pred_ranks, weighted=False)
                     history[f'test_{metric}'] = tau
                     # Save p-values in Log
-                    LOG_PATH = f'{os.getcwd()}/logs'
-                    with open(f'{LOG_PATH}/p_values_{metric}.txt', 'a') as f:
-                        f.write(f'{sg.name}, {predictor}, {feat_struct}, {metric}, {tau}, {p_value}\n')
+                    txt = f'{sg.name}, {predictor}, {feat_struct}, {metric}, {tau}, {p_value}\n'
+                    write_log(f'{LOG_PATH}/p_values_{metric}.txt', txt)
+
+                elif metric.startswith('spearmanr'):
+                    rho, p_value = compute_spearmanr(true_ranks, pred_ranks)
+                    history[f'test_{metric}'] = rho
+                    # Save p-values in Log
+                    txt = f'{sg.name}, {predictor}, {feat_struct}, {metric}, {rho}, {p_value}\n'
+                    write_log(f'{LOG_PATH}/p_values_{metric}.txt', txt)'''
         
             if return_all:
                 return history, pos_score, neg_score
