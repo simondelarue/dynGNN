@@ -21,3 +21,6 @@ ia-contacts_hypertext2009, DotPredictor(), agg, kendall@5, 1.0, 0.33333333333333
 ia-contacts_hypertext2009, DotPredictor(), temporal_edges, kendall@5, 1.0, 0.3333333333333333
 ia-contacts_hypertext2009, DotPredictor(), time_tensor, kendall@5, 1.0, 0.3333333333333333
 ia-contacts_hypertext2009, DotPredictor(), DTFT, kendall@5, 1.0, 0.3333333333333333
+SF2H, DotPredictor(), temporal_edges, kendall@5, 0.10682583409856136, 0.013138040009131323
+SF2H, DotPredictor(), time_tensor, kendall@5, -0.001190354725708261, 0.9779536083093641
+SF2H, DotPredictor(), time_tensor, kendall@5, 0.04921266537428153, 0.253249514732948

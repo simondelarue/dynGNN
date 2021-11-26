@@ -1,6 +1,75 @@
+import numpy as np
 import torch
 from scipy import stats
+import os
 from sklearn.metrics import roc_auc_score, roc_curve, f1_score, classification_report
+
+from utils import write_log
+
+def compute_metric(metric, **kwargs):
+    ''' Compute performance metric between true values and predicted values, according to `metric`. '''
+
+    history = {}
+
+    if metric == 'auc':
+        pos_score = kwargs['pos_score']
+        neg_score = kwargs['neg_score']
+
+        auc, fpr, tpr = compute_auc(pos_score, neg_score)
+        # Save results
+        history[f'test_{metric}'] = auc
+        history['test_fpr'] = fpr
+        history['test_tpr'] = tpr
+
+    elif metric == 'f1_score':
+        pos_score = kwargs['pos_score']
+        neg_score = kwargs['neg_score']
+
+        score = compute_f1_score(pos_score, neg_score, 'macro')
+        history[f'test_{metric}'] = score
+        
+    elif ('kendall' in metric) or ('spearmanr' in metric):
+
+        LOG_PATH = f'{os.getcwd()}/logs'
+
+        sg = kwargs['sg']
+        timestep = kwargs['timestep']
+        pos_score = kwargs['pos_score']
+        predictor = kwargs['predictor']
+        feat_struct = kwargs['feat_struct']
+
+        # True ranks
+        src, dest, ranks, dup_mask = sg.rank_edges(sg.data_df, sg.trange_val, metric=metric, timestep=timestep)
+
+        # Predicted ranks
+        if len(pos_score) != len(ranks):
+            len_pos_score = len(pos_score)
+            pos_score = pos_score[:int(len(ranks))]
+            pred_ranks = np.argsort(-pos_score[~dup_mask])
+        else:
+            pred_ranks = np.argsort(-pos_score[~dup_mask])
+
+        true_ranks = np.array(range(0, len(pred_ranks)))
+        
+        if metric.startswith('wkendall'):
+            tau, _ = compute_kendall(true_ranks, pred_ranks, weighted=True)
+            history['test_wkendall'] = tau
+
+        elif metric.startswith('kendall'):
+            tau, p_value = compute_kendall(true_ranks, pred_ranks, weighted=False)
+            history[f'test_{metric}'] = tau
+            # Save p-values in Log
+            txt = f'{sg.name}, {predictor}, {feat_struct}, {metric}, {tau}, {p_value}\n'
+            write_log(f'{LOG_PATH}/p_values_{metric}.txt', txt)
+
+        elif metric.startswith('spearmanr'):
+            rho, p_value = compute_spearmanr(true_ranks, pred_ranks)
+            history[f'test_{metric}'] = rho
+            # Save p-values in Log
+            txt = f'{sg.name}, {predictor}, {feat_struct}, {metric}, {rho}, {p_value}\n'
+            write_log(f'{LOG_PATH}/p_values_{metric}.txt', txt)
+
+    return history
 
 def compute_kendall(true_ranks, pred_ranks, weighted=True):
     ''' Kendall tau given two lists of ranks. If weighted is True, Kendall tau is weighted, i.e gives more
@@ -13,7 +82,15 @@ def compute_kendall(true_ranks, pred_ranks, weighted=True):
 
     return tau, p_value
 
+def compute_spearmanr(true_ranks, pred_ranks, alternative='two-sided'):
+    ''' Spearman rank-order correlation coefficient given two lists of ranks. '''
+
+    corr, p_value = stats.spearmanr(true_ranks, pred_ranks, alternative=alternative)
+
+    return corr, p_value
+
 def compute_auc(pos_score, neg_score):
+    ''' Compute ROC AUC score for arrays of positive and negative scores. '''
     
     # Compute auc
     scores = torch.cat([pos_score, neg_score]).cpu().numpy()

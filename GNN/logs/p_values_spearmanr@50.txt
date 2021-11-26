@@ -1,0 +1,12 @@
+SF2H, DotPredictor(), temporal_edges, spearmanr@50, 0.09100033323704342, 0.0005454215571657976
+SF2H, DotPredictor(), agg_simp, spearmanr@50, 0.004302362703685717, 0.8704222504894649
+SF2H, DotPredictor(), agg_simp, spearmanr@50, 0.007064275686861346, 0.7888217382940417
+SF2H, DotPredictor(), agg, spearmanr@50, 0.0019559712364830423, 0.9408834678363072
+SF2H, DotPredictor(), agg, spearmanr@50, 0.030897214617355295, 0.24130610751104714
+SF2H, DotPredictor(), time_tensor, spearmanr@50, -0.00851385280696348, 0.7468442236525547
+HighSchool, DotPredictor(), agg_simp, spearmanr@50, -0.02121861473369489, 0.7761693740779624
+HighSchool, DotPredictor(), agg_simp, spearmanr@50, -0.020269106855466783, 0.7859379913099764
+HighSchool, DotPredictor(), agg, spearmanr@50, -0.0380251032365877, 0.61030606426728
+HighSchool, DotPredictor(), agg, spearmanr@50, -0.0446756395492923, 0.5492703618110742
+HighSchool, DotPredictor(), temporal_edges, spearmanr@50, -0.012181369938819443, 0.8703535201922767
+HighSchool, DotPredictor(), time_tensor, spearmanr@50, 0.002853500091069152, 0.9695037722088482
