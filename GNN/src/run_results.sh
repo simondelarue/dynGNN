@@ -76,6 +76,18 @@
 #python3 src/main.py --data SF2H --feat_struct agg --model GraphSage --epoch 1500 --lr 0.01 --metric kendall@25 --test_agg True --duplicate_edges True --predictor dotProduct --loss_func BCEWithLogits
 #python3 src/main.py --data SF2H --feat_struct agg --model GraphSage --epoch 1500 --lr 0.01 --metric kendall@50 --test_agg True --duplicate_edges True --predictor dotProduct --loss_func BCEWithLogits
 #
+#python3 src/main.py --data SF2H --feat_struct agg --model GraphSage --epoch 1500 --lr 0.01 --metric kendall@5 --test_agg True --duplicate_edges True --predictor dotProduct --loss_func marginRanking
+#python3 src/main.py --data SF2H --feat_struct agg --model GraphSage --epoch 1500 --lr 0.01 --metric kendall@10 --test_agg True --duplicate_edges True --predictor dotProduct --loss_func marginRanking
+#python3 src/main.py --data SF2H --feat_struct agg --model GraphSage --epoch 1500 --lr 0.01 --metric kendall@25 --test_agg True --duplicate_edges True --predictor dotProduct --loss_func marginRanking
+#python3 src/main.py --data SF2H --feat_struct agg --model GraphSage --epoch 1500 --lr 0.01 --metric kendall@50 --test_agg True --duplicate_edges True --predictor dotProduct --loss_func marginRanking
+#python3 src/main.py --data SF2H --feat_struct agg --model GraphSage --epoch 1500 --lr 0.01 --metric kendall@100 --test_agg True --duplicate_edges True --predictor dotProduct --loss_func marginRanking
+#
+python3 src/main.py --data SF2H --feat_struct agg --model GraphSage --epoch 1500 --lr 0.01 --metric kendall@5 --test_agg True --duplicate_edges True --predictor cosine --loss_func torchMarginRanking
+python3 src/main.py --data SF2H --feat_struct agg --model GraphSage --epoch 1500 --lr 0.01 --metric kendall@10 --test_agg True --duplicate_edges True --predictor cosine --loss_func torchMarginRanking
+python3 src/main.py --data SF2H --feat_struct agg --model GraphSage --epoch 1500 --lr 0.01 --metric kendall@25 --test_agg True --duplicate_edges True --predictor cosine --loss_func torchMarginRanking
+python3 src/main.py --data SF2H --feat_struct agg --model GraphSage --epoch 1500 --lr 0.01 --metric kendall@50 --test_agg True --duplicate_edges True --predictor cosine --loss_func torchMarginRanking
+python3 src/main.py --data SF2H --feat_struct agg --model GraphSage --epoch 1500 --lr 0.01 --metric kendall@100 --test_agg True --duplicate_edges True --predictor cosine --loss_func torchMarginRanking
+#
 #python3 src/main.py --data SF2H --feat_struct agg --model GraphSage --epoch 1500 --lr 0.01 --metric spearmanr@5 --test_agg True --duplicate_edges True --predictor dotProduct --loss_func BCEWithLogits
 #python3 src/main.py --data SF2H --feat_struct agg --model GraphSage --epoch 1500 --lr 0.01 --metric spearmanr@10 --test_agg True --duplicate_edges True --predictor dotProduct --loss_func BCEWithLogits
 #python3 src/main.py --data SF2H --feat_struct agg --model GraphSage --epoch 1500 --lr 0.01 --metric spearmanr@25 --test_agg True --duplicate_edges True --predictor dotProduct --loss_func BCEWithLogits
@@ -96,6 +108,18 @@
 #python3 src/main.py --data SF2H --feat_struct temporal_edges --model GraphSage --epoch 700 --lr 0.01 --metric kendall@25 --test_agg True --duplicate_edges True --predictor dotProduct --loss_func BCEWithLogits --step_prediction single
 #python3 src/main.py --data SF2H --feat_struct temporal_edges --model GraphSage --epoch 700 --lr 0.01 --metric kendall@50 --test_agg True --duplicate_edges True --predictor dotProduct --loss_func BCEWithLogits --step_prediction single
 #
+#python3 src/main.py --data SF2H --feat_struct temporal_edges --model GraphSage --epoch 700 --lr 0.01 --metric kendall@5 --test_agg True --duplicate_edges True --predictor dotProduct --loss_func marginRanking --step_prediction single
+#python3 src/main.py --data SF2H --feat_struct temporal_edges --model GraphSage --epoch 700 --lr 0.01 --metric kendall@10 --test_agg True --duplicate_edges True --predictor dotProduct --loss_func marginRanking --step_prediction single
+#python3 src/main.py --data SF2H --feat_struct temporal_edges --model GraphSage --epoch 700 --lr 0.01 --metric kendall@25 --test_agg True --duplicate_edges True --predictor dotProduct --loss_func marginRanking --step_prediction single
+#python3 src/main.py --data SF2H --feat_struct temporal_edges --model GraphSage --epoch 700 --lr 0.01 --metric kendall@50 --test_agg True --duplicate_edges True --predictor dotProduct --loss_func marginRanking --step_prediction single
+#python3 src/main.py --data SF2H --feat_struct temporal_edges --model GraphSage --epoch 700 --lr 0.01 --metric kendall@100 --test_agg True --duplicate_edges True --predictor dotProduct --loss_func marginRanking --step_prediction single
+#
+python3 src/main.py --data SF2H --feat_struct temporal_edges --model GraphSage --epoch 700 --lr 0.01 --metric kendall@5 --test_agg True --duplicate_edges True --predictor cosine --loss_func torchMarginRanking --step_prediction single
+python3 src/main.py --data SF2H --feat_struct temporal_edges --model GraphSage --epoch 700 --lr 0.01 --metric kendall@10 --test_agg True --duplicate_edges True --predictor cosine --loss_func torchMarginRanking --step_prediction single
+python3 src/main.py --data SF2H --feat_struct temporal_edges --model GraphSage --epoch 700 --lr 0.01 --metric kendall@25 --test_agg True --duplicate_edges True --predictor cosine --loss_func torchMarginRanking --step_prediction single
+python3 src/main.py --data SF2H --feat_struct temporal_edges --model GraphSage --epoch 700 --lr 0.01 --metric kendall@50 --test_agg True --duplicate_edges True --predictor cosine --loss_func torchMarginRanking --step_prediction single
+python3 src/main.py --data SF2H --feat_struct temporal_edges --model GraphSage --epoch 700 --lr 0.01 --metric kendall@100 --test_agg True --duplicate_edges True --predictor cosine --loss_func torchMarginRanking --step_prediction single
+#
 #python3 src/main.py --data SF2H --feat_struct temporal_edges --model GraphSage --epoch 700 --lr 0.01 --metric spearmanr@5 --test_agg True --duplicate_edges True --predictor dotProduct --loss_func BCEWithLogits --step_prediction single
 #python3 src/main.py --data SF2H --feat_struct temporal_edges --model GraphSage --epoch 700 --lr 0.01 --metric spearmanr@10 --test_agg True --duplicate_edges True --predictor dotProduct --loss_func BCEWithLogits --step_prediction single
 #python3 src/main.py --data SF2H --feat_struct temporal_edges --model GraphSage --epoch 700 --lr 0.01 --metric spearmanr@25 --test_agg True --duplicate_edges True --predictor dotProduct --loss_func BCEWithLogits --step_prediction single
@@ -115,6 +139,18 @@
 #python3 src/main.py --data SF2H --feat_struct time_tensor --model GCNTime --epoch 10 --lr 0.01 --metric kendall@10 --test_agg True --duplicate_edges True --predictor dotProduct --loss_func BCEWithLogits
 #python3 src/main.py --data SF2H --feat_struct time_tensor --model GCNTime --epoch 10 --lr 0.01 --metric kendall@25 --test_agg True --duplicate_edges True --predictor dotProduct --loss_func BCEWithLogits
 #python3 src/main.py --data SF2H --feat_struct time_tensor --model GCNTime --epoch 10 --lr 0.01 --metric kendall@50 --test_agg True --duplicate_edges True --predictor dotProduct --loss_func BCEWithLogits
+#
+#python3 src/main.py --data SF2H --feat_struct time_tensor --model GCNTime --epoch 10 --lr 0.01 --metric kendall@5 --test_agg True --duplicate_edges True --predictor dotProduct --loss_func marginRanking
+#python3 src/main.py --data SF2H --feat_struct time_tensor --model GCNTime --epoch 10 --lr 0.01 --metric kendall@10 --test_agg True --duplicate_edges True --predictor dotProduct --loss_func marginRanking
+#python3 src/main.py --data SF2H --feat_struct time_tensor --model GCNTime --epoch 10 --lr 0.01 --metric kendall@25 --test_agg True --duplicate_edges True --predictor dotProduct --loss_func marginRanking
+#python3 src/main.py --data SF2H --feat_struct time_tensor --model GCNTime --epoch 10 --lr 0.01 --metric kendall@50 --test_agg True --duplicate_edges True --predictor dotProduct --loss_func marginRanking
+#python3 src/main.py --data SF2H --feat_struct time_tensor --model GCNTime --epoch 10 --lr 0.01 --metric kendall@100 --test_agg True --duplicate_edges True --predictor dotProduct --loss_func marginRanking
+#
+python3 src/main.py --data SF2H --feat_struct time_tensor --model GCNTime --epoch 10 --lr 0.01 --metric kendall@5 --test_agg True --duplicate_edges True --predictor cosine --loss_func torchMarginRanking
+python3 src/main.py --data SF2H --feat_struct time_tensor --model GCNTime --epoch 10 --lr 0.01 --metric kendall@10 --test_agg True --duplicate_edges True --predictor cosine --loss_func torchMarginRanking
+python3 src/main.py --data SF2H --feat_struct time_tensor --model GCNTime --epoch 10 --lr 0.01 --metric kendall@25 --test_agg True --duplicate_edges True --predictor cosine --loss_func torchMarginRanking
+python3 src/main.py --data SF2H --feat_struct time_tensor --model GCNTime --epoch 10 --lr 0.01 --metric kendall@50 --test_agg True --duplicate_edges True --predictor cosine --loss_func torchMarginRanking
+python3 src/main.py --data SF2H --feat_struct time_tensor --model GCNTime --epoch 10 --lr 0.01 --metric kendall@100 --test_agg True --duplicate_edges True --predictor cosine --loss_func torchMarginRanking
 #
 #python3 src/main.py --data SF2H --feat_struct time_tensor --model GCNTime --epoch 10 --lr 0.01 --metric spearmanr@5 --test_agg True --duplicate_edges True --predictor dotProduct --loss_func BCEWithLogits
 #python3 src/main.py --data SF2H --feat_struct time_tensor --model GCNTime --epoch 10 --lr 0.01 --metric spearmanr@10 --test_agg True --duplicate_edges True --predictor dotProduct --loss_func BCEWithLogits

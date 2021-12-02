@@ -15,7 +15,7 @@ import torch
 from utils import *
 from loss import *
 from timesteps import *
-from predictor import DotPredictor, CosinePredictor
+from predictor import *
 from gcn import *
 from data_loader import DataLoader
 from stream_graph import StreamGraph
@@ -93,16 +93,14 @@ def run(data, val_size, test_size, cache, batch_size, feat_struct, step_predicti
         models = [model_N, model_NN, model_full]
 
     # Predictor
-    if predictor == 'dotProduct':
+    """if predictor == 'dotProduct':
         pred = DotPredictor()
     elif predictor == 'cosine':
-        pred = CosinePredictor()
+        pred = CosinePredictor()"""
+    pred = pred_factory(predictor)
 
     # Loss
-    if loss_func == 'BCEWithLogits':
-        loss = compute_loss
-    elif loss_func == 'graphSage':
-        loss = graphSage_loss
+    loss = loss_factory(loss_func).compute
 
     # Train model
     kwargs = {'train_pos_g': sg.train_pos_g, 'train_neg_g': sg.train_neg_g}

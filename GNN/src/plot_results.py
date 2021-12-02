@@ -14,29 +14,29 @@ def plot_val_score(x, y, ax, metric, marker, label):
 if __name__=='__main__':
     global_path = '/home/infres/sdelarue/node-embedding/GNN/results'
 
-    datasets = ['HighSchool']#, 'HighSchool', 'ia-contacts_hypertext2009']
+    datasets = ['SF2H']#, 'HighSchool', 'ia-contacts_hypertext2009']
     #methods = ['agg_simp', 'agg', 'temporal_edges', 'time_tensor', 'DTFT']
-    methods = ['agg_simp', 'agg', 'temporal_edges', 'time_tensor', ]
-    order = {'@5': 0, '@10': 1, '@25': 2, '@50': 3}
+    methods = ['temporal_edges', 'agg', 'time_tensor']
+    order = {'@5': 0, '@10': 1, '@25': 2, '@50': 3, '@100': 4}
     titles = {'agg_simp': 'Agg', 'agg': 'wAgg', 'temporal_edges': 'TDAG', 'time_tensor': '3d-tensor', 'DTFT': 'DTFT'}
     items = {'GraphConv': ['black', '*'], 'GraphSage': ['darkblue', '.'], 'GCNTime': ['green', '+']}
-    metric = 'Spearmanr'
+    metric = 'Kendall'
     #step_predictions = ['single', 'multi']
 
     for i, dataset in enumerate(datasets):
-        fig, ax = plt.subplots(1, len(methods)+1, figsize=(20, 4))
+        fig, ax = plt.subplots(1, len(methods), figsize=(20, 4))
         
         for j, method in enumerate(methods):
             x, y = [], []
             path = f'{dataset}/{method}'
 
-            files = [f for f in listdir(f'{global_path}/{path}') if (f.endswith('.pkl') and (metric.lower() in f) and ('@' in f) and ('BCEWithLogits' in f) and not f.startswith(f'{dataset}_GCN_lc'))]
+            files = [f for f in listdir(f'{global_path}/{path}') if (f.endswith('.pkl') and (metric.lower() in f) and ('@' in f) and ('torchMarginRanking' in f) and ('cosine' in f) and not f.startswith(f'{dataset}_GCN_lc'))]
             df_tot = pd.DataFrame()
             for f in files:
                 df_tmp = pd.read_pickle(f'{global_path}/{path}/{f}')
                 df_tmp['method'] = method
                 df_tmp['dataset'] = dataset
-                df_tmp['metric'] = '@' + f.split('@')[1][:2].split('_')[0]
+                df_tmp['metric'] = '@' + f.split('@')[1].split('_')[0]
                 df_tmp['order'] = df_tmp['metric'].apply(lambda x: order.get(x))
                 pred = df_tmp['predictor'].unique()[0]
                 loss = df_tmp['loss_func'].unique()[0]

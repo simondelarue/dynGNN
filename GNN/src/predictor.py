@@ -2,9 +2,13 @@
 
 import torch.nn as nn
 import torch.nn.functional as F
+
 import dgl.function as fn
 
+
 class DotPredictor(nn.Module):
+    ''' Compute dot products between node representations, if link exists between these nodes. '''
+
     def forward(self, g, mem):
         with g.local_scope():
             g.ndata['h'] = mem
@@ -19,12 +23,21 @@ def udf_u_cos_v(edges):
 
 
 class CosinePredictor(nn.Module):
+    ''' Compute cosine similarity between node representations, if link exists between these nodes. '''
+
     def forward(self, g, h):
-        """
-        graph : graph with edges connecting pairs of nodes
-        h : hidden state of every node
-        """
         with g.local_scope():
             g.ndata['h'] = h
             g.apply_edges(udf_u_cos_v)
-            return g.edata['cos']#.squeeze(dim=1)
+            return g.edata['cos']
+
+
+def pred_factory(predictor_name: str):
+    ''' Instanciate appropriate predictor class according to input. '''
+    
+    if predictor_name == 'dotProduct':
+        pred = DotPredictor()
+    elif predictor_name == 'cosine':
+        pred = CosinePredictor()
+    
+    return pred
