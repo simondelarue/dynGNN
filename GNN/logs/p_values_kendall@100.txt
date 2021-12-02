@@ -1,0 +1,9 @@
+SF2H, DotPredictor(), agg, kendall@100, -0.09248187014959837, 4.2789241502531354e-11
+SF2H, DotPredictor(), temporal_edges, kendall@100, 0.027487513933641287, 0.05000782114120736
+SF2H, DotPredictor(), time_tensor, kendall@100, 0.026388841678280477, 0.05989574694261286
+SF2H, CosinePredictor(), agg, kendall@100, -0.10004676780546468, 9.786933953654398e-13
+SF2H, CosinePredictor(), temporal_edges, kendall@100, -0.0009123043087722258, 0.9481353556245123
+SF2H, CosinePredictor(), time_tensor, kendall@100, -0.07913683119010195, 1.6753666310891782e-08
+SF2H, CosinePredictor(), agg, kendall@100, -0.10281767236983841, 2.2837400586521123e-13
+SF2H, CosinePredictor(), temporal_edges, kendall@100, 0.01554042992780098, 0.26783859829487244
+SF2H, CosinePredictor(), time_tensor, kendall@100, -0.06625126540710065, 2.314721382754306e-06

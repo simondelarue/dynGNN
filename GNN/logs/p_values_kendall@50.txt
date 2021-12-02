@@ -21,3 +21,12 @@ ia-contacts_hypertext2009, DotPredictor(), time_tensor, kendall@50, 0.0636889991
 ia-contacts_hypertext2009, DotPredictor(), DTFT, kendall@50, 0.0641852770885029, 0.23437681697102786
 SF2H, DotPredictor(), temporal_edges, kendall@50, 0.06454906956991738, 0.0002427998436146047
 SF2H, DotPredictor(), time_tensor, kendall@50, -0.025997992433016752, 0.1393983321376474
+SF2H, DotPredictor(), agg, kendall@50, 0.026109952899390006, 0.1377027134589606
+SF2H, DotPredictor(), temporal_edges, kendall@50, 0.10615010423905488, 1.5912497947915073e-09
+SF2H, DotPredictor(), time_tensor, kendall@50, -0.01877461199907343, 0.2858037142791159
+SF2H, CosinePredictor(), agg, kendall@50, -0.0011678634854451393, 0.9470631444350616
+SF2H, CosinePredictor(), temporal_edges, kendall@50, -0.008128715929271871, 0.6439859800055505
+SF2H, CosinePredictor(), time_tensor, kendall@50, -0.007543819010115049, 0.6680102270496946
+SF2H, CosinePredictor(), agg, kendall@50, -0.015444753300903405, 0.37990921289410107
+SF2H, CosinePredictor(), temporal_edges, kendall@50, 0.09810632383599721, 2.4395630454459904e-08
+SF2H, CosinePredictor(), time_tensor, kendall@50, 0.0270809203922477, 0.12365744515728598

@@ -24,3 +24,13 @@ ia-contacts_hypertext2009, DotPredictor(), DTFT, kendall@5, 1.0, 0.3333333333333
 SF2H, DotPredictor(), temporal_edges, kendall@5, 0.10682583409856136, 0.013138040009131323
 SF2H, DotPredictor(), time_tensor, kendall@5, -0.001190354725708261, 0.9779536083093641
 SF2H, DotPredictor(), time_tensor, kendall@5, 0.04921266537428153, 0.253249514732948
+SF2H, DotPredictor(), temporal_edges, kendall@5, 0.050300989694929084, 0.2429043837011866
+SF2H, DotPredictor(), temporal_edges, kendall@5, 0.07546848960990375, 0.07976833694374574
+SF2H, DotPredictor(), agg, kendall@5, 0.03268373975444683, 0.44799232587971627
+SF2H, DotPredictor(), time_tensor, kendall@5, -0.02098425330748563, 0.6261463571155874
+SF2H, CosinePredictor(), agg, kendall@5, 0.0193517668265143, 0.6532447059610706
+SF2H, CosinePredictor(), temporal_edges, kendall@5, 0.10832228003945175, 0.011911817318578032
+SF2H, CosinePredictor(), time_tensor, kendall@5, 0.04213855729007244, 0.3279438578403009
+SF2H, CosinePredictor(), agg, kendall@5, 0.0526816991463456, 0.22131943510514396
+SF2H, CosinePredictor(), temporal_edges, kendall@5, 0.1483862190932898, 0.0005713833548046441
+SF2H, CosinePredictor(), time_tensor, kendall@5, 0.035064449205863345, 0.4156246065551059
