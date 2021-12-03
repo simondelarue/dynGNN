@@ -16,7 +16,8 @@ if __name__=='__main__':
 
     datasets = ['SF2H']#, 'HighSchool', 'ia-contacts_hypertext2009']
     #methods = ['agg_simp', 'agg', 'temporal_edges', 'time_tensor', 'DTFT']
-    methods = ['temporal_edges', 'agg', 'time_tensor']
+    #methods = ['temporal_edges', 'agg', 'agg_simp', 'time_tensor']
+    methods = ['agg_simp', 'temporal_edges']
     order = {'@5': 0, '@10': 1, '@25': 2, '@50': 3, '@100': 4}
     titles = {'agg_simp': 'Agg', 'agg': 'wAgg', 'temporal_edges': 'TDAG', 'time_tensor': '3d-tensor', 'DTFT': 'DTFT'}
     items = {'GraphConv': ['black', '*'], 'GraphSage': ['darkblue', '.'], 'GCNTime': ['green', '+']}
@@ -30,7 +31,7 @@ if __name__=='__main__':
             x, y = [], []
             path = f'{dataset}/{method}'
 
-            files = [f for f in listdir(f'{global_path}/{path}') if (f.endswith('.pkl') and (metric.lower() in f) and ('@' in f) and ('torchMarginRanking' in f) and ('cosine' in f) and not f.startswith(f'{dataset}_GCN_lc'))]
+            files = [f for f in listdir(f'{global_path}/{path}') if (f.endswith('.pkl') and (metric.lower() in f) and ('@' in f) and ('spearmanr' not in f) and ('pairwise' in f) and ('cosine' in f) and not f.startswith(f'{dataset}_GCN_lc'))]
             df_tot = pd.DataFrame()
             for f in files:
                 df_tmp = pd.read_pickle(f'{global_path}/{path}/{f}')

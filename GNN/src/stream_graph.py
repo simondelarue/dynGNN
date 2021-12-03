@@ -548,14 +548,14 @@ class StreamGraph():
         self.test_pos_g = test_pos_g
         self.test_pos_seen_g = test_pos_seen_g
 
-    def rank_edges(self, df, timerange, metric, timestep=20):
+    def rank_edges(self, df, timerange, metric=None, timestep=20):
         ''' Given a link stream dataframe and a timerange, ranks all edges appearing within the timerange
             using their order of appearance. Output links and their corresponding ranks as a triplet of
             arrays. Note that duplicated edges are not removed at this step. '''
 
         min_t = np.min(timerange) - timestep
 
-        if '@' in metric:
+        if metric is not None and '@' in metric:
             nb_edges = nb_edges_at_ts(df, min_t, int(metric.split('@')[1]))
             df_tmp = df[(df['t'] >= min_t)][['src', 'dest']]
             df_filtered = df_tmp.iloc[:nb_edges, :]
