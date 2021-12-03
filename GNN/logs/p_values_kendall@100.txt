@@ -7,3 +7,8 @@ SF2H, CosinePredictor(), time_tensor, kendall@100, -0.07913683119010195, 1.67536
 SF2H, CosinePredictor(), agg, kendall@100, -0.10281767236983841, 2.2837400586521123e-13
 SF2H, CosinePredictor(), temporal_edges, kendall@100, 0.01554042992780098, 0.26783859829487244
 SF2H, CosinePredictor(), time_tensor, kendall@100, -0.06625126540710065, 2.314721382754306e-06
+SF2H, CosinePredictor(), agg_simp, kendall@100, -0.08419963171818354, 1.930515315807568e-09
+SF2H, CosinePredictor(), agg_simp, kendall@100, -0.05762832917814861, 3.974136793908101e-05
+SF2H, CosinePredictor(), agg_simp, kendall@100, -0.06287866977826903, 7.348557906090227e-06
+SF2H, CosinePredictor(), agg_simp, kendall@100, -0.05192164106940037, 0.00021383618744750003
+SF2H, CosinePredictor(), temporal_edges, kendall@100, -0.003478477627836885, 0.8041187934893377
