@@ -26,8 +26,11 @@ class GCNModel(nn.Module):
         history = defaultdict(list) # Useful for plots
 
         # Arguments
-        train_pos_g = kwargs['train_pos_g']
-        train_neg_g = kwargs['train_neg_g']
+        #train_pos_g = kwargs['train_pos_g']
+        #train_neg_g = kwargs['train_neg_g']
+        sg = kwargs['sg']
+        train_pos_g = sg.train_pos_g
+        train_neg_g = sg.train_neg_g
         
         for epoch in range(epochs):
             
@@ -43,7 +46,7 @@ class GCNModel(nn.Module):
 
             #loss_val = loss(pos_score, neg_score, device)
             q = train_neg_g.number_of_edges()
-            loss_val = loss(pos_score, neg_score, device)
+            loss_val = loss(pos_score, neg_score, device, **kwargs)
             
             #Save results
             history['train_loss'].append(loss_val.cpu().detach().numpy())
@@ -54,7 +57,7 @@ class GCNModel(nn.Module):
             optimizer.step()
 
             if epoch%10==0:
-                print(f'In epoch {epoch}, loss: {loss_val:.5f}')
+                print(f'In epoch {epoch}, loss: {loss_val.item():.5f}')
 
         self.embedding_ = h
         self.history_train_ = history

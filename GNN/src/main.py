@@ -21,7 +21,7 @@ from data_loader import DataLoader
 from stream_graph import StreamGraph
 
 def run(data, val_size, test_size, cache, batch_size, feat_struct, step_prediction, timestep, norm, emb_size, model_name, \
-        epochs, lr, metric, device, result_path, dup_edges, test_agg, predictor, loss_func):
+        epochs, lr, metric, device, result_path, model_path, dup_edges, test_agg, predictor, loss_func):
 
     # ------ Load Data & preprocessing ------
     dl = DataLoader(data)
@@ -93,93 +93,121 @@ def run(data, val_size, test_size, cache, batch_size, feat_struct, step_predicti
         models = [model_N, model_NN, model_full]
 
     # Predictor
-    """if predictor == 'dotProduct':
-        pred = DotPredictor()
-    elif predictor == 'cosine':
-        pred = CosinePredictor()"""
     pred = pred_factory(predictor)
 
     # Loss
     loss = loss_factory(loss_func).compute
 
-    # Train model
-    kwargs = {'train_pos_g': sg.train_pos_g, 'train_neg_g': sg.train_neg_g}
+    # Saving information
+    saved_model_path = f'{model_path}/{data}/{feat_struct}'
+    model_filename = f'{data}_{model_name}_{feat_struct}_{dup_edges}_{predictor}_{loss_func}'
 
-    for i, model in enumerate(models):
-        
-        if model_name != 'GCN_lc':
-            # Optimizer
-            optimizer = torch.optim.Adam(itertools.chain(model.parameters()), lr=LR)
 
-            # Training
-            start = time.time()
-            print('\nGCN training ...')
-            print(f'Training timerange length : {len(sg.trange_train)}')
-            model.train(optimizer=optimizer,
-                        predictor=pred,
-                        loss=loss,
-                        device=device,
-                        epochs=epochs,
-                        **kwargs)
-            end = time.time()
-            print(f'Elapsed time : {end-start}s')
+    # ------ Training ------
 
-        elif i in [0, 1] and model_name == 'GCN_lc':
-            kwargs = {'train_pos_batches': sg.train_pos_batches,
-                      'train_neg_batches': sg.train_neg_batches,
-                      'emb_size': emb_size}
-            # Optimizer
-            optimizer = torch.optim.Adam(itertools.chain(model.parameters()), lr=LR)
+    # Train model only if necessary. In other words, if combination of parameters have already been used for training,
+    # use existing corresponding pre-trained model.
+    if not os.path.isfile(f'{saved_model_path}/{model_filename}.pt'):
+    
+        # Train model
+        kwargs = {'sg': sg,
+                  'timestep': timestep}
 
-            # Training
-            start = time.time()
-            print('\nGCN training ...')
-            model.train(optimizer=optimizer,
-                        predictor=pred,
-                        loss=loss,
-                        device=device,
-                        epochs=epochs,
-                        **kwargs)
-            end = time.time()
-            print(f'Elapsed time : {end-start}s')
-
-        elif i==2:
-            alphas = np.arange(0, 1.25, 0.25)
-            betas = np.arange(0, 1.25, 0.25)
-            gammas = np.arange(0, 1.25, 0.25)
-            triplets = find_triplets(alphas, 1)
-            trained_models = []
-
-            kwargs = {'train_pos_batches': sg.train_pos_batches,
-                      'train_neg_batches': sg.train_neg_batches,
-                        'emb_size': emb_size, 
-                        'emb_prev': torch.rand(sg.train_pos_batches[0].ndata['feat'].shape[0], emb_size, requires_grad=False), 
-                        'emb_neighbors': models[0].history_train_['train_emb'].copy(), 
-                        'emb_nneighbors': models[1].history_train_['train_emb'].copy()}
+        for i, model in enumerate(models):
             
-            for num_triplet, triplet in enumerate(triplets):
-                kwargs['alpha'], kwargs['beta'], kwargs['gamma'] = triplet
-
-                # Model
-                model_full = GCNModelFull(sg.train_pos_batches[0].ndata['feat'].shape[0], emb_size).to(device)
+            if model_name != 'GCN_lc':
                 # Optimizer
-                optimizer = torch.optim.Adam(itertools.chain(model_full.parameters()), lr=LR)
+                optimizer = torch.optim.Adam(itertools.chain(model.parameters()), lr=LR)
 
                 # Training
                 start = time.time()
-                print(f'\nGCN training (linear combination parameters : {triplet}) ...')
-                model_full.train(optimizer=optimizer,
+                print('\nGCN training ...')
+                print(f'Training timerange length : {len(sg.trange_train)}')
+                model.train(optimizer=optimizer,
                             predictor=pred,
                             loss=loss,
                             device=device,
                             epochs=epochs,
                             **kwargs)
                 end = time.time()
-                trained_models.append(model_full)
                 print(f'Elapsed time : {end-start}s')
+
+                # Save model
+                torch.save(model, f'{saved_model_path}/{model_filename}.pt')
+
+            elif i in [0, 1] and model_name == 'GCN_lc':
+                kwargs = {'train_pos_batches': sg.train_pos_batches,
+                        'train_neg_batches': sg.train_neg_batches,
+                        'emb_size': emb_size}
+                # Optimizer
+                optimizer = torch.optim.Adam(itertools.chain(model.parameters()), lr=LR)
+
+                # Training
+                start = time.time()
+                print('\nGCN training ...')
+                model.train(optimizer=optimizer,
+                            predictor=pred,
+                            loss=loss,
+                            device=device,
+                            epochs=epochs,
+                            **kwargs)
+                end = time.time()
+                print(f'Elapsed time : {end-start}s')
+
+                # TODO : Save list of model for GCN lc
+                #torch.save(model, f'{saved_model_path}/{model_filename}.pt')
+
+            elif i==2:
+                alphas = np.arange(0, 1.25, 0.25)
+                betas = np.arange(0, 1.25, 0.25)
+                gammas = np.arange(0, 1.25, 0.25)
+                triplets = find_triplets(alphas, 1)
+                trained_models = []
+
+                kwargs = {'train_pos_batches': sg.train_pos_batches,
+                        'train_neg_batches': sg.train_neg_batches,
+                            'emb_size': emb_size, 
+                            'emb_prev': torch.rand(sg.train_pos_batches[0].ndata['feat'].shape[0], emb_size, requires_grad=False), 
+                            'emb_neighbors': models[0].history_train_['train_emb'].copy(), 
+                            'emb_nneighbors': models[1].history_train_['train_emb'].copy()}
                 
+                for num_triplet, triplet in enumerate(triplets):
+                    kwargs['alpha'], kwargs['beta'], kwargs['gamma'] = triplet
+
+                    # Model
+                    model_full = GCNModelFull(sg.train_pos_batches[0].ndata['feat'].shape[0], emb_size).to(device)
+                    # Optimizer
+                    optimizer = torch.optim.Adam(itertools.chain(model_full.parameters()), lr=LR)
+
+                    # Training
+                    start = time.time()
+                    print(f'\nGCN training (linear combination parameters : {triplet}) ...')
+                    model_full.train(optimizer=optimizer,
+                                predictor=pred,
+                                loss=loss,
+                                device=device,
+                                epochs=epochs,
+                                **kwargs)
+                    end = time.time()
+                    trained_models.append(model_full)
+                    print(f'Elapsed time : {end-start}s')
+
+                    # TODO : Save list of model for GCN lc
+                    #torch.save(model, f'{saved_model_path}/{model_filename}.pt')
+
+    # Use pre-trained model
+    else:
+        print('\nModel have already been trained for selection of parameters in input.')
+        if model_name != 'GCN_lc':
+            print(f'Pre-trained model used for evaluation : {saved_model_path}/{model_filename}.pt')
+            models = [torch.load(f'{saved_model_path}/{model_filename}.pt')]
+        else:
+            # TODO : load list of models when linear combination of GCNs are trained
+            pass
         
-    # Evaluation
+
+    # ------ Evaluation ------
+
     print('\nGCN Eval ...')
     print(f'Evaluation timerange length : {len(sg.trange_val)}')
     fig, ax = plt.subplots(1, 2, figsize=(12, 7))
@@ -255,7 +283,8 @@ def run(data, val_size, test_size, cache, batch_size, feat_struct, step_predicti
 
     print('Done !')
 
-    # Save results
+    # ------ Save results ------
+
     res_path = f'{result_path}/{data}/{feat_struct}'
     if feat_struct == 'temporal_edges':
         res_filename = f'{data}_{model_name}_{feat_struct}_{metric}_{test_agg}_{dup_edges}_{predictor}_{loss_func}_{step_prediction}'
@@ -266,16 +295,18 @@ def run(data, val_size, test_size, cache, batch_size, feat_struct, step_predicti
     print(f'Results saved in {res_path}/{res_filename}.pkl')
     print(df_tot.shape)
 
+
 if __name__=='__main__':
 
     LOG_PATH = f'{os.getcwd()}/logs'
     #RESULT_PATH = f'{os.getcwd()}/results'
     RESULT_PATH = '/home/infres/sdelarue/node-embedding/GNN/results'
+    MODEL_PATH = '/home/infres/sdelarue/node-embedding/GNN/models'
 
     parser = argparse.ArgumentParser('Preprocessing data')
-    parser.add_argument('--data', type=str, help='Dataset name : \{SF2H\}', default='SF2H')
+    parser.add_argument('--data', type=str, help='Dataset name : \{SF2H, HighSchool, ia-contact, ia-contacts_hypertext2009, fb-forum, ia-enron-employees\}', default='SF2H')
     parser.add_argument('--cache', type=str, help='Path for splitted graphs already cached', default=None)
-    parser.add_argument('--feat_struct', type=str, help='Data structure : \{agg, agg_simp, time_tensor, temporal_edges\}', default='time_tensor')
+    parser.add_argument('--feat_struct', type=str, help='Data structure : \{agg, agg_simp, time_tensor, temporal_edges, DTFT\}', default='time_tensor')
     parser.add_argument('--step_prediction', type=str, help="If data structure is 'temporal_edges', either 'single' or 'multi' step predictions can be used.", default='single')
     parser.add_argument('--normalized', type=bool, help='If true, normalized adjacency is used', default=True)
     parser.add_argument('--model', type=str, help='GCN model : \{GraphConv, GraphSage, GCNTime\}', default='GraphConv')
@@ -284,11 +315,11 @@ if __name__=='__main__':
     parser.add_argument('--emb_size', type=int, help='Embedding size', default=20)
     parser.add_argument('--epochs', type=int, help='Number of epochs in training', default=1)
     parser.add_argument('--lr', type=float, help='Learning rate in for training', default=0.001)
-    parser.add_argument('--metric', type=str, help='Evaluation metric : \{auc, kendall, wkendall, kendall@5, kendall@10, kendall@25, kendall@50\}', default='auc')
+    parser.add_argument('--metric', type=str, help='Evaluation metric : \{auc, kendall, wkendall, spearmanr, \{kendall, wkendall, spearmanr\}@\{5, 10, 25, 50, 100\}\}', default='auc')
     parser.add_argument('--duplicate_edges', type=str, help='If true, allows duplicate edges in training graphs', default='True')
     parser.add_argument('--test_agg', type=str, help='If true, predictions are performed on a static graph test.', default='True')
     parser.add_argument('--predictor', type=str, help='\{dotProduct, cosine\}', default='dotProduct')
-    parser.add_argument('--loss_func', type=str, help='\{BCEWithLogits, graphSage\}', default='BCEWithLogits')
+    parser.add_argument('--loss_func', type=str, help='\{BCEWithLogits, graphSage, marginRanking, torchMarginRanking, pairwise\}', default='BCEWithLogits')
     args = parser.parse_args()
 
     # ------ Parameters ------
@@ -330,6 +361,7 @@ if __name__=='__main__':
         METRIC,
         DEVICE,
         RESULT_PATH,
+        MODEL_PATH,
         DUP_EDGES,
         TEST_AGG,
         PREDICTOR,

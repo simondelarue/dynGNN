@@ -1,0 +1,8 @@
+SF2H, CosinePredictor(), agg_simp, spearmanr@100, -0.07403045562135688, 0.0004241321780901565
+SF2H, CosinePredictor(), agg_simp, spearmanr@100, -0.07403045562135688, 0.0004241321780901565
+SF2H, CosinePredictor(), temporal_edges, spearmanr@100, -0.00177088792681918, 0.9329002563773986
+SF2H, CosinePredictor(), agg_simp, spearmanr@100, -0.04212440460738409, 0.04510411109724987
+SF2H, CosinePredictor(), agg_simp, spearmanr@100, -0.04214599366713458, 0.04499405415462716
+SF2H, CosinePredictor(), temporal_edges, spearmanr@100, 0.016219677316514292, 0.4405820614950392
+SF2H, CosinePredictor(), agg_simp, spearmanr@100, -0.0773344929561121, 0.00023108289228523194
+SF2H, CosinePredictor(), temporal_edges, spearmanr@100, -0.0052335183909568775, 0.8034939461942453
