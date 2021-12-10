@@ -10,6 +10,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from metrics import compute_metric
+from loss import loss_factory
 from layer import *
 
 class GCNModel(nn.Module):
@@ -31,6 +32,7 @@ class GCNModel(nn.Module):
         sg = kwargs['sg']
         train_pos_g = sg.train_pos_g
         train_neg_g = sg.train_neg_g
+        timestep = kwargs['timestep']
         
         for epoch in range(epochs):
             
@@ -45,9 +47,21 @@ class GCNModel(nn.Module):
             neg_score = predictor(train_neg_g, h.to(device))
 
             #loss_val = loss(pos_score, neg_score, device)
+
+            # Ranking loss
             q = train_neg_g.number_of_edges()
-            loss_val = loss(pos_score, neg_score, device, **kwargs)
+            m = train_pos_g.number_of_edges()
+            loss_val_rank = loss(pos_score, neg_score, device, **kwargs) / m
+            #print(f'Loss val rank : {loss_val_rank} - {type(loss_val_rank)}')
             
+            # Structural loss
+            loss_val_struct = loss_factory('torchMarginRanking').compute(pos_score, neg_score, device, **kwargs)
+            #print(f'Loss val struct : {loss_val_struct} - {type(loss_val_struct)}')
+
+
+            # Combination of losses
+            loss_val = (loss_val_rank + loss_val_struct) / 2
+
             #Save results
             history['train_loss'].append(loss_val.cpu().detach().numpy())
             
@@ -63,7 +77,7 @@ class GCNModel(nn.Module):
         self.history_train_ = history
         
     def test(self, predictor, test_pos_g, test_neg_g, metric, timestep, feat_struct, step_prediction='single', 
-            k_indexes=None, sg=None, return_all=True):
+            k_indexes=None, sg=None, model_name=None, return_all=True):
 
         history = {} # useful for plots
         embedding = self.embedding_
@@ -92,7 +106,7 @@ class GCNModel(nn.Module):
             neg_score = predictor(test_neg_g, embedding)
 
             kwargs = {'pos_score': pos_score, 'neg_score': neg_score, 'timestep': timestep, 'feat_struct': feat_struct, 
-                    'predictor': predictor, 'sg': sg}
+                    'predictor': predictor, 'sg': sg, 'model_name': model_name}
 
             history = compute_metric(metric, **kwargs)
         

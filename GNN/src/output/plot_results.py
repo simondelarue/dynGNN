@@ -14,14 +14,13 @@ def plot_val_score(x, y, ax, metric, marker, label):
 if __name__=='__main__':
     global_path = '/home/infres/sdelarue/node-embedding/GNN/results'
 
-    datasets = ['SF2H']#, 'HighSchool', 'ia-contacts_hypertext2009']
-    #methods = ['agg_simp', 'agg', 'temporal_edges', 'time_tensor', 'DTFT']
-    #methods = ['temporal_edges', 'agg', 'agg_simp', 'time_tensor']
-    methods = ['agg_simp', 'temporal_edges']
+    #datasets = ['SF2H', 'HighSchool', 'ia-contacts_hypertext2009']
+    datasets = ['SF2H']
+    methods = ['agg_simp', 'agg', 'temporal_edges', 'time_tensor', 'DTFT']
     order = {'@5': 0, '@10': 1, '@25': 2, '@50': 3, '@100': 4}
     titles = {'agg_simp': 'Agg', 'agg': 'wAgg', 'temporal_edges': 'TDAG', 'time_tensor': '3d-tensor', 'DTFT': 'DTFT'}
     items = {'GraphConv': ['black', '*'], 'GraphSage': ['darkblue', '.'], 'GCNTime': ['green', '+']}
-    metric = 'Kendall'
+    metric = 'Spearmanr'
     #step_predictions = ['single', 'multi']
 
     for i, dataset in enumerate(datasets):
@@ -31,7 +30,7 @@ if __name__=='__main__':
             x, y = [], []
             path = f'{dataset}/{method}'
 
-            files = [f for f in listdir(f'{global_path}/{path}') if (f.endswith('.pkl') and (metric.lower() in f) and ('@' in f) and ('spearmanr' not in f) and ('pairwise' in f) and ('cosine' in f) and not f.startswith(f'{dataset}_GCN_lc'))]
+            files = [f for f in listdir(f'{global_path}/{path}') if (f.endswith('.pkl') and (metric.lower() in f) and ('@' in f) and ('kendall' not in f) and ('pairwise' in f) and ('cosine' in f) and not f.startswith(f'{dataset}_GCN_lc'))]
             df_tot = pd.DataFrame()
             for f in files:
                 df_tmp = pd.read_pickle(f'{global_path}/{path}/{f}')
@@ -47,9 +46,14 @@ if __name__=='__main__':
 
             models = np.array(df_tot['model'].unique())
             for m, model in enumerate(models):
-                ax[j].plot(np.array(df_tot[df_tot['model']==model]['metric']), 
-                            np.array(df_tot[df_tot['model']==model]['score']), 
+                if dataset == 'ia-contacts_hypertext2009' and len(np.array(df_tot[df_tot['model']==model]['metric']))>3:
+                    ax[j].plot(np.array(df_tot[df_tot['model']==model]['metric'])[2:], 
+                            np.array(df_tot[df_tot['model']==model]['score'])[2:], 
                             label=model, marker=items.get(model)[1], color=items.get(model)[0])
+                else:
+                    ax[j].plot(np.array(df_tot[df_tot['model']==model]['metric']), 
+                                np.array(df_tot[df_tot['model']==model]['score']), 
+                                label=model, marker=items.get(model)[1], color=items.get(model)[0])
                 ax[j].legend(loc='upper right')
                 ax[j].set_xlabel(f'{metric}@')
                 if metric == 'Kendall':
@@ -57,7 +61,7 @@ if __name__=='__main__':
                 elif metric == 'Spearmanr':
                     var = 'rho'
                 ax[j].set_ylabel(f'{metric} {var}')
-                ax[j].set_ylim(-0.05, 0.2)
+                ax[j].set_ylim(-0.1, 0.3)
                 ax[j].set_title(titles.get(method), weight='bold')
                 ax[j].spines['top'].set_visible(False)
                 ax[j].spines['right'].set_visible(False)

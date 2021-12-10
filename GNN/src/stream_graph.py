@@ -563,6 +563,12 @@ class StreamGraph():
             max_t = np.max(timerange)
             df_filtered = df[(df['t'] >= min_t) & (df['t'] <= max_t)][['src', 'dest']]
 
+        # Save df train
+        max_train_t = self.trange_train.max()
+        df_train = self.data_df[self.data_df['t']<=max_train_t]
+        df_train.to_pickle('logs/SF2H/SF2H_train.pkl', protocol=3)
+        # --------
+
         e_src = df_filtered['src'].values
         e_dest = df_filtered['dest'].values
         e_dup = np.array(df_filtered.duplicated(keep='first'))

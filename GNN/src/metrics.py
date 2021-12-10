@@ -1,3 +1,4 @@
+import pandas as pd
 import numpy as np
 import torch
 from scipy import stats
@@ -35,8 +36,9 @@ def compute_metric(metric, **kwargs):
         sg = kwargs['sg']
         timestep = kwargs['timestep']
         pos_score = kwargs['pos_score']
-        predictor = kwargs['predictor']
+        predictor = str(kwargs['predictor'])
         feat_struct = kwargs['feat_struct']
+        model_name = kwargs['model_name']
 
         # True ranks
         src, dest, ranks, dup_mask = sg.rank_edges(sg.data_df, sg.trange_val, metric=metric, timestep=timestep)
@@ -50,6 +52,24 @@ def compute_metric(metric, **kwargs):
             pred_ranks = np.argsort(-pos_score[~dup_mask])
 
         true_ranks = np.array(range(0, len(pred_ranks)))
+
+        # ------ Save results in df for analysis
+        
+        data = {
+            'dataset': [sg.name] * len(true_ranks),
+            'feat_struct': [feat_struct] * len(true_ranks),
+            'model_name': [model_name] * len(true_ranks),
+            'metric': [metric] * len(true_ranks),
+            'predictor': [predictor] * len(true_ranks),
+            'loss_func': ['MRL_PWL'] * len(true_ranks),
+            'src': src[~dup_mask],
+            'dest': dest[~dup_mask],
+            'true_ranks': true_ranks,
+            'pred_ranks': pred_ranks
+        }
+        df_analysis = pd.DataFrame(data)
+        df_analysis.to_pickle(f'{LOG_PATH}/SF2H/preds_{feat_struct}_{model_name}_{metric}.pkl', protocol=3)
+        # ------ 
         
         if metric.startswith('wkendall'):
             tau, _ = compute_kendall(true_ranks, pred_ranks, weighted=True)

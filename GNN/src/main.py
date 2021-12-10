@@ -234,7 +234,8 @@ def run(data, val_size, test_size, cache, batch_size, feat_struct, step_predicti
                                                                 feat_struct=feat_struct, 
                                                                 step_prediction=step_prediction,
                                                                 k_indexes=k_indexes,
-                                                                sg=sg, 
+                                                                sg=sg,
+                                                                model_name=model_name,
                                                                 return_all=True)                                                
 
             if len(models) > 1:
