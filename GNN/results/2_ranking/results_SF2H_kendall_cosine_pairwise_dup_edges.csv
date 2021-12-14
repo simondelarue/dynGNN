@@ -1,0 +1,10 @@
+,,score,score,score,score,score
+metric,,@5,@10,@25,@50,@100
+method,model,,,,,
+agg_simp,GraphConv,0.0017,-0.0091,-0.0123,-0.0372,-0.101
+agg_simp,GraphSage,0.0353,-0.004,-0.0233,-0.0342,-0.111
+agg,GraphConv,0.0208,-0.0236,-0.015,-0.0324,-0.1097
+agg,GraphSage,0.019,-0.024,-0.0356,-0.0332,-0.1035
+temporal_edges,GraphSage,0.1222,0.0548,0.1065,0.0965,0.0449
+time_tensor,GCNTime,0.0319,-0.015,-0.0054,-0.0062,-0.0788
+DTFT,GCNTime,-0.0304,-0.0476,-0.0042,0.0166,-0.0662
