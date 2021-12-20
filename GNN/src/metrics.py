@@ -1,9 +1,13 @@
+# -*- coding: utf-8 -*-
 import pandas as pd
 import numpy as np
-import torch
+
 from scipy import stats
 import os
+
+import torch
 from sklearn.metrics import roc_auc_score, roc_curve, f1_score, classification_report
+from sklearn.utils import shuffle
 
 from utils import write_log
 
@@ -39,6 +43,7 @@ def compute_metric(metric, **kwargs):
         predictor = str(kwargs['predictor'])
         feat_struct = kwargs['feat_struct']
         model_name = kwargs['model_name']
+        shuffle_test = kwargs['shuffle_test']
 
         # True ranks
         src, dest, ranks, dup_mask = sg.rank_edges(sg.data_df, sg.trange_val, metric=metric, timestep=timestep)
@@ -52,6 +57,12 @@ def compute_metric(metric, **kwargs):
             pred_ranks = np.argsort(-pos_score[~dup_mask])
 
         true_ranks = np.array(range(0, len(pred_ranks)))
+
+        # Shuffle test links true order (in order to verify that results are not randomly good for
+        # temporal structures).
+        if shuffle_test == 'True':
+            true_ranks = shuffle(true_ranks)
+
 
         # ------ Save results in df for analysis
         
@@ -68,7 +79,10 @@ def compute_metric(metric, **kwargs):
             'pred_ranks': pred_ranks
         }
         df_analysis = pd.DataFrame(data)
-        df_analysis.to_pickle(f'{LOG_PATH}/SF2H/preds_{feat_struct}_{model_name}_{metric}.pkl', protocol=3)
+        if shuffle_test == 'True':
+            df_analysis.to_pickle(f'{LOG_PATH}/SF2H/preds_{feat_struct}_{model_name}_{metric}_shuffled.pkl', protocol=3)
+        else:
+            df_analysis.to_pickle(f'{LOG_PATH}/SF2H/preds_{feat_struct}_{model_name}_{metric}.pkl', protocol=3)
         # ------ 
         
         if metric.startswith('wkendall'):

@@ -23,7 +23,8 @@ if __name__=='__main__':
 
             files = []
             for f in listdir(f'{global_path}/{path}'):
-                if f.endswith('.pkl') \
+                # select shuffled test links order files
+                if f.endswith('True.pkl') \
                     and not f.startswith(f'{dataset}_GCN_lc') \
                     and f'{metric}@' in f \
                     and dotpredictor in f \
@@ -52,4 +53,4 @@ if __name__=='__main__':
 
         # Save results in .csv
         print(df_piv)
-        df_piv.to_csv(f'{global_path}/2_ranking/{filename}.csv', index=True)
+        df_piv.to_csv(f'{global_path}/2_ranking/{filename}_shuffled.csv', index=True)

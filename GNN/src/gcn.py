@@ -77,7 +77,7 @@ class GCNModel(nn.Module):
         self.history_train_ = history
         
     def test(self, predictor, test_pos_g, test_neg_g, metric, timestep, feat_struct, step_prediction='single', 
-            k_indexes=None, sg=None, model_name=None, return_all=True):
+            k_indexes=None, sg=None, model_name=None, shuffle_test='False', return_all=True):
 
         history = {} # useful for plots
         embedding = self.embedding_
@@ -106,7 +106,7 @@ class GCNModel(nn.Module):
             neg_score = predictor(test_neg_g, embedding)
 
             kwargs = {'pos_score': pos_score, 'neg_score': neg_score, 'timestep': timestep, 'feat_struct': feat_struct, 
-                    'predictor': predictor, 'sg': sg, 'model_name': model_name}
+                    'predictor': predictor, 'sg': sg, 'model_name': model_name, 'shuffle_test': shuffle_test}
 
             history = compute_metric(metric, **kwargs)
         

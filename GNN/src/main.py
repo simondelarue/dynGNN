@@ -21,7 +21,7 @@ from data_loader import DataLoader
 from stream_graph import StreamGraph
 
 def run(data, val_size, test_size, cache, batch_size, feat_struct, step_prediction, timestep, norm, emb_size, model_name, \
-        epochs, lr, metric, device, result_path, model_path, dup_edges, test_agg, predictor, loss_func):
+        epochs, lr, metric, device, result_path, model_path, dup_edges, test_agg, predictor, loss_func, shuffle_test):
 
     # ------ Load Data & preprocessing ------
     dl = DataLoader(data)
@@ -236,6 +236,7 @@ def run(data, val_size, test_size, cache, batch_size, feat_struct, step_predicti
                                                                 k_indexes=k_indexes,
                                                                 sg=sg,
                                                                 model_name=model_name,
+                                                                shuffle_test=shuffle_test,
                                                                 return_all=True)                                                
 
             if len(models) > 1:
@@ -288,9 +289,9 @@ def run(data, val_size, test_size, cache, batch_size, feat_struct, step_predicti
 
     res_path = f'{result_path}/{data}/{feat_struct}'
     if feat_struct == 'temporal_edges':
-        res_filename = f'{data}_{model_name}_{feat_struct}_{metric}_{test_agg}_{dup_edges}_{predictor}_{loss_func}_{step_prediction}'
+        res_filename = f'{data}_{model_name}_{feat_struct}_{metric}_{test_agg}_{dup_edges}_{predictor}_{loss_func}_{step_prediction}_{shuffle_test}'
     else:
-        res_filename = f'{data}_{model_name}_{feat_struct}_{metric}_{test_agg}_{dup_edges}_{predictor}_{loss_func}'
+        res_filename = f'{data}_{model_name}_{feat_struct}_{metric}_{test_agg}_{dup_edges}_{predictor}_{loss_func}_{shuffle_test}'
 
     df_tot.to_pickle(f'{res_path}/{res_filename}.pkl', protocol=3)
     print(f'Results saved in {res_path}/{res_filename}.pkl')
@@ -321,6 +322,7 @@ if __name__=='__main__':
     parser.add_argument('--test_agg', type=str, help='If true, predictions are performed on a static graph test.', default='True')
     parser.add_argument('--predictor', type=str, help='\{dotProduct, cosine\}', default='dotProduct')
     parser.add_argument('--loss_func', type=str, help='\{BCEWithLogits, graphSage, marginRanking, torchMarginRanking, pairwise\}', default='BCEWithLogits')
+    parser.add_argument('--shuffle_test', type=str, help='If True, shuffle test set links order.', default='False')
     args = parser.parse_args()
 
     # ------ Parameters ------
@@ -342,6 +344,7 @@ if __name__=='__main__':
     TEST_AGG = args.test_agg
     PREDICTOR = args.predictor
     LOSS_FUNC = args.loss_func
+    SHUFFLE_TEST = args.shuffle_test
 
     print(f'Device : {DEVICE}')
     
@@ -366,5 +369,6 @@ if __name__=='__main__':
         DUP_EDGES,
         TEST_AGG,
         PREDICTOR,
-        LOSS_FUNC)
+        LOSS_FUNC,
+        SHUFFLE_TEST)
 
