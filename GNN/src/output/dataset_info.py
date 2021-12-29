@@ -3,21 +3,13 @@
 import argparse
 from scipy import sparse
 import numpy as np
-import pandas as pd
 import os
-import time
-from timesteps import *
-import itertools
-import matplotlib.pyplot as plt
-import dgl
-from dgl.data.utils import load_graphs, save_graphs
 import torch
 from utils import *
-from temporal_sampler import temporal_sampler
-from predictor import DotPredictor
 from gcn import *
 from data_loader import DataLoader
 from stream_graph import StreamGraph
+import networkx as nx
 
 def run(data, val_size, test_size, cache, batch_size, feat_struct, step_prediction, timestep, norm, emb_size, model_name, epochs, lr, metric, device, result_path):
 
@@ -36,20 +28,37 @@ def run(data, val_size, test_size, cache, batch_size, feat_struct, step_predicti
     print('Number of edges : ', g.number_of_edges())
 
     src, dest = g.edges()
-    adj = sparse.coo_matrix((np.ones(len(src)), (src.numpy(), dest.numpy())))
+    adj = sparse.coo_matrix((np.ones(len(src)), (src.numpy(), dest.numpy())), shape=(g.number_of_nodes(), g.number_of_nodes()))
     dense_adj = adj.todense()
+    print(dense_adj[36, 144])
+    print(dense_adj[144, 36])
     degrees = []
     weights = []
+    agg_degrees = []
+    W = len(sg.trange)*g.number_of_nodes()
+
     for node in range(dense_adj.shape[0]):
         degrees.append(dense_adj[node, :].sum() / len(sg.trange))
-        weights.append(dense_adj[node, :].sum().sum() / (len(sg.trange)*g.number_of_nodes()))
+        filt_deg = dense_adj[node, :]
+        agg_degrees.append(filt_deg[filt_deg != 0].shape[1])
+        #weights.append(dense_adj[node, :].sum().sum() / (len(sg.trange)*g.number_of_nodes()))
+        filt = dense_adj[node, :]
+        weights.append(filt[filt != 0].shape[1] / W)
 
     res = 0
     for w, d in zip(weights, degrees):
         res += w * d
+
+    # Density
+    m = 2 * g.number_of_edges()
+    m_tot = g.number_of_nodes() * (g.number_of_nodes() - 1)
+    print(f'Dynamic graph density : {m / m_tot}')
+
+    avg_agg_deg = (1 / g.number_of_nodes()) * sum(agg_degrees)
         
     #print(f'Average degree : {np.mean(degrees):.3f}')
-    print(f'Average degree : {res:.2e}')
+    print(f'Average degree of dynamic graph : {res:.2e}')
+    print(f'Average degree of agg graph : {avg_agg_deg:.2e}')
 
     
 if __name__=='__main__':
