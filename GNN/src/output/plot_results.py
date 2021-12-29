@@ -7,23 +7,28 @@ from utils import save_figures
 
 def plot_val_score(x, y, ax, metric, marker, label):
     ax.plot(x, y, label=label, marker=marker, alpha=0.8)
-    ax.set_xlabel('timestep')
-    ax.set_ylabel(f'{metric}')
-    ax.legend()
+    ax.set_xlabel('timestep', fontsize=15)
+    ax.set_ylabel(f'{metric}', fontsize=15)
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    ax.spines['bottom'].set_visible(True)
+    ax.spines['left'].set_visible(True)
+    ax.legend(fontsize=18, loc='lower left')
 
 if __name__=='__main__':
     global_path = '/home/infres/sdelarue/node-embedding/GNN/results'
 
     #datasets = ['SF2H', 'HighSchool', 'ia-contacts_hypertext2009']
     datasets = ['SF2H']
-    methods = ['agg_simp', 'agg', 'temporal_edges', 'time_tensor', 'DTFT']
+    #methods = ['agg_simp', 'agg', 'temporal_edges', 'time_tensor', 'DTFT']
+    methods = ['agg_simp', 'agg', 'time_tensor']
     order = {'@5': 0, '@10': 1, '@25': 2, '@50': 3, '@100': 4}
     titles = {'agg_simp': 'Agg', 'agg': 'wAgg', 'temporal_edges': 'TDAG', 'time_tensor': '3d-tensor', 'DTFT': 'DTFT'}
     items = {'GraphConv': ['black', '*'], 'GraphSage': ['darkblue', '.'], 'GCNTime': ['green', '+']}
-    metric = 'Spearmanr'
+    metric = 'auc'
     #step_predictions = ['single', 'multi']
 
-    for i, dataset in enumerate(datasets):
+    """for i, dataset in enumerate(datasets):
         fig, ax = plt.subplots(1, len(methods), figsize=(20, 4))
         
         for j, method in enumerate(methods):
@@ -71,15 +76,15 @@ if __name__=='__main__':
         # Save results
         filename = f"{dataset}_True_True_{metric}@_{pred}_{loss}"
         fig.savefig(f'{global_path}/{dataset}/{filename}.eps', bbox_inches='tight', transparent=False, pad_inches=0)    
-        save_figures(fig, f'{global_path}/{dataset}', filename, ext='png')
+        save_figures(fig, f'{global_path}/{dataset}', filename, ext='png')"""
 
 
-    '''for dataset in datasets:
+    for dataset in datasets:
         fig, ax = plt.subplots(1, 1, figsize=(12, 7))
         markers = ['*', '.', '+']
         for method, marker in zip(methods, markers):
             path = f'{dataset}/{method}'
-            files = [f for f in listdir(f'{global_path}/{path}') if (f.endswith('.pkl') and not f.startswith(f'{dataset}_GCN_lc'))]
+            files = [f for f in listdir(f'{global_path}/{path}') if (f.endswith('auc_False_True_dotProduct_BCEWithLogits.pkl') and not f.startswith(f'{dataset}_GCN_lc'))]
 
             for f in files:
                 df_tmp = pd.read_pickle(f'{global_path}/{path}/{f}')
@@ -101,7 +106,7 @@ if __name__=='__main__':
                         method_name = 'Agg'
                     elif method == 'time_tensor':
                         method_name = '3d-tensor'
-                    label = f"{method_name} - {model} - Avg AUC={100*(avg_score):.2f}"
+                    label = f"{titles.get(method)} - {model} - Avg AUC={100*(avg_score):.2f}"
 
                 if model in ['GraphConv', 'GCNTime'] and dup_edge == 'True' and test_agg == 'False':
                     plot_val_score(#np.array(df_tmp['timestep'])
@@ -114,7 +119,7 @@ if __name__=='__main__':
 
         # Save results
         filename = f"{dataset}_False_True_{pred}_{loss}"
-        save_figures(fig, f'{global_path}/{dataset}', filename, ext='png')'''
+        save_figures(fig, f'{global_path}/{dataset}', filename, ext='eps')
 
 
     # GCN Linear combination
