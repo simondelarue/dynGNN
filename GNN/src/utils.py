@@ -202,7 +202,7 @@ def print_result(history, metric):
     elif metric=='f1_score':
         print(f" ===> Test F1 score : {history['test_f1_score']:.4f}")
 
-def save_figures(fig, path, name):
+def save_figures(fig, path, name, ext='png'):
     if not os.path.isdir(path):
         os.mkdir(path)
-    fig.savefig(f'{path}/{name}.png')
+    fig.savefig(f'{path}/{name}.{ext}')

@@ -71,7 +71,7 @@ if __name__=='__main__':
         # Save results
         filename = f"{dataset}_True_True_{metric}@_{pred}_{loss}"
         fig.savefig(f'{global_path}/{dataset}/{filename}.eps', bbox_inches='tight', transparent=False, pad_inches=0)    
-        save_figures(fig, f'{global_path}/{dataset}', filename)
+        save_figures(fig, f'{global_path}/{dataset}', filename, ext='png')
 
 
     '''for dataset in datasets:
@@ -114,7 +114,7 @@ if __name__=='__main__':
 
         # Save results
         filename = f"{dataset}_False_True_{pred}_{loss}"
-        save_figures(fig, f'{global_path}/{dataset}', filename)'''
+        save_figures(fig, f'{global_path}/{dataset}', filename, ext='png')'''
 
 
     # GCN Linear combination
@@ -148,4 +148,4 @@ if __name__=='__main__':
 
             # Save results
             filename = f"{dataset}_GCN_lc_False_{dup_edge}_{pred}_{loss}"
-            save_figures(fig, f'{global_path}/{dataset}/agg', filename)'''
+            save_figures(fig, f'{global_path}/{dataset}/agg', filename, ext='png')'''
