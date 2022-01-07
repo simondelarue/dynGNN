@@ -1,0 +1,6 @@
+,,score,score,score,score,score
+metric,,@5,@10,@25,@50,@100
+method,model,,,,,
+baseline,baseline_avg,0.7143,0.7576,-0.1751,-0.1269,-0.0042
+baseline,baseline_inter_contact,0.3333,0.4242,-0.0447,0.0047,-0.0405
+baseline,baseline_neighbors,0.3333,0.4242,-0.1852,0.0197,0.0193
