@@ -528,6 +528,9 @@ class StreamGraph():
         self.trange_train = self.trange[self.trange <= val_time]
         self.trange_val = self.trange[(self.trange > val_time) & (self.trange <= test_time)]
         self.trange_test = self.trange[self.trange > test_time]
+        self.edata_train = train_pos_g.edata['timestamp']
+        self.edata_val = val_pos_g.edata['timestamp']
+        self.edata_test = test_pos_g.edata['timestamp']
 
         # Save graphs
         if neg_sampling:
