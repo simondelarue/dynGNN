@@ -45,7 +45,7 @@ def run(data, val_size, test_size, cache, batch_size, feat_struct, step_predicti
 
     
     # ====== Baseline models ======
-    if model_name == 'baseline_avg':
+    if model_name.startswith('baseline'):
         max_train = sg.edata_train[-1].item()
         max_val = sg.edata_val[-1].item()
         df_train = sg.data_df[sg.data_df['t']<=max_train].copy()
@@ -61,6 +61,24 @@ def run(data, val_size, test_size, cache, batch_size, feat_struct, step_predicti
         for node in nodes:
             df_train_tmp = df_train[(df_train['src']==node) | (df_train['dest']==node)]
             embedds[node] = df_train_tmp['t_idx'].mean()
+
+        # Compute node embedding according to average neighbors ages. This baseline method
+        # allows to add structural information (based on neighborhood) in addition to temporal elements
+        if model_name == 'baseline_neighbors':
+            embedds_neighbs = {}
+            for node in nodes:
+                neighbs_emb = []
+                df_train_tmp = df_train[(df_train['src']==node) | (df_train['dest']==node)]
+                # Compute embeddings for neighbors
+                for n in set(df_train_tmp['src'].unique()).union(set(df_train_tmp['dest'].unique())):
+                    if n != node:
+                        neighbs_emb.append(embedds.get(n))
+                
+                # Stack embeddings of node and its neighbors embeddings and compute mean
+                neighbs_emb.append(embedds[node])
+                embedds_neighbs[node] = np.mean(neighbs_emb)
+
+            embedds = embedds_neighbs
 
         avg_embed = np.mean(np.array(list(embedds.values())))
 
@@ -92,7 +110,7 @@ def run(data, val_size, test_size, cache, batch_size, feat_struct, step_predicti
                                 None, None, None]], 
                                 columns=['model', 'score', 'timestep', 'number_of_edges_pos', 'number_of_edges_neg', 'test_agg', \
                                                 'duplicate_edges', 'predictor', 'loss_func'])
-        #print(f'Metric : {metric} = {tau}')
+        print(f'Metric : {metric} = {tau}')
 
     
     # ====== Custom models ======
