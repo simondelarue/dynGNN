@@ -82,6 +82,20 @@ def run(data, val_size, test_size, cache, batch_size, feat_struct, step_predicti
 
         avg_embed = np.mean(np.array(list(embedds.values())))
 
+        # Inter-contact time: embedding of node is computed according to its average inter-contact time with other nodes
+        # Higher values of embeddings reflect sparse interractions over time, lower values reflect dense interactions.
+        if model_name == 'baseline_inter_contact':
+            embedds_inter_contact = {}
+            for node in nodes:
+                df_train_tmp = df_train[(df_train['src']==node) | (df_train['dest']==node)]
+                if df_train_tmp.shape[0] > 1:
+                    avg_inter_contact_time = (df_train_tmp['t'].values[1:] - df_train_tmp['t'].values[:-1]).mean()
+                else:
+                    avg_inter_contact_time = df_train_tmp['t'].values[0]
+                embedds_inter_contact[node] = avg_inter_contact_time
+
+            embedds = embedds_inter_contact
+
         # True ranks
         src, dest, ranks, dup_mask = sg.rank_edges(sg.data_df, sg.trange_val, metric=metric, timestep=timestep)
 
