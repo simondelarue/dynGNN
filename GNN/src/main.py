@@ -98,6 +98,8 @@ def run(data, val_size, test_size, cache, batch_size, feat_struct, step_predicti
 
         # True ranks
         src, dest, ranks, dup_mask = sg.rank_edges(sg.data_df, sg.trange_val, metric=metric, timestep=timestep)
+        if shuffle_test == 'True':
+            ranks = shuffle(ranks)
 
         # Predicted ranks on test 
         l_scores, l_scores_bis = [], []
@@ -379,7 +381,7 @@ def run(data, val_size, test_size, cache, batch_size, feat_struct, step_predicti
     if feat_struct == 'temporal_edges':
         res_filename = f'{data}_{model_name}_{feat_struct}_{metric}_{test_agg}_{dup_edges}_{predictor}_{loss_func}_{step_prediction}_{shuffle_test}'
     elif feat_struct == 'baseline':
-        res_filename = f'{data}_{model_name}_{feat_struct}_{metric}'
+        res_filename = f'{data}_{model_name}_{feat_struct}_{metric}_{shuffle_test}'
     else:
         res_filename = f'{data}_{model_name}_{feat_struct}_{metric}_{test_agg}_{dup_edges}_{predictor}_{loss_func}_{shuffle_test}'
 

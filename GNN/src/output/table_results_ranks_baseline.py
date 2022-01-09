@@ -22,14 +22,14 @@ if __name__=='__main__':
             files = []
             for f in listdir(f'{global_path}/{path}'):
                 # select shuffled test links order files
-                if f.startswith(f'{dataset}_{method}'):
+                if f.startswith(f'{dataset}_{method}') and f.endswith('True.pkl'):
                     files.append(f)
 
             for f in files:
                 df_tmp = pd.read_pickle(f'{global_path}/{path}/{f}')
                 df_tmp['method'] = method
                 df_tmp['dataset'] = dataset
-                df_tmp['metric'] = '@' + f.split('@')[1].split('.')[0]
+                df_tmp['metric'] = '@' + f.split('@')[1].split('_')[0]
                 df_tmp['score'] = (df_tmp['score']).round(4)
 
                 df = pd.concat([df, df_tmp])
@@ -47,4 +47,4 @@ if __name__=='__main__':
 
         # Save results in .csv
         print(df_piv)
-        df_piv.to_csv(f'{global_path}/2_ranking/{filename}_{method}.csv', index=True)
+        df_piv.to_csv(f'{global_path}/2_ranking/{filename}_{method}_shuffled.csv', index=True)
