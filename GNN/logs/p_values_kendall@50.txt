@@ -111,3 +111,6 @@ ia-contacts_hypertext2009, CosinePredictor(), temporal_edges, kendall@50, -0.003
 ia-contacts_hypertext2009, CosinePredictor(), time_tensor, kendall@50, 0.033085194375516956, 0.5398968812329697
 ia-contacts_hypertext2009, CosinePredictor(), DTFT, kendall@50, -0.04813895781637717, 0.37246272404689007
 ia-contacts_hypertext2009, CosinePredictor(), agg, kendall@50, -0.09594706368899918, 0.07546794528474253
+SF2H, CosinePredictor(), agg_simp, kendall@50, -0.03417496718400123, 0.052026809756663336
+SF2H, CosinePredictor(), agg, kendall@50, -0.03242606748513628, 0.06525843712919163
+SF2H, CosinePredictor(), agg, kendall@50, -0.03315960157516794, 0.05940467817061424
